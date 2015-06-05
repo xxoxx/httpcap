@@ -11,13 +11,13 @@ import (
 )
 
 type RAWInput struct {
-	data    chan []byte
+	data    chan RAWData
 	address string
 }
 
 func NewRAWInput(address string) (i *RAWInput) {
 	i = new(RAWInput)
-	i.data = make(chan []byte)
+	i.data = make(chan RAWData)
 	i.address = address
 
 	go i.listen(address)
@@ -25,11 +25,11 @@ func NewRAWInput(address string) (i *RAWInput) {
 	return
 }
 
-func (i *RAWInput) Read(data []byte) (int, error) {
-	buf := <-i.data
-	copy(data, buf)
+func (i *RAWInput) Read(data []byte) (int, uint16, uint16, string, string, error) {
+	raw := <-i.data
+	copy(data, raw.Data)
 
-	return len(buf), nil
+	return len(raw.Data), raw.SrcPort, raw.DestPort, raw.LocalAddr, raw.RemoteAddr, nil
 }
 
 func (i *RAWInput) listen(address string) {
@@ -54,7 +54,13 @@ func (i *RAWInput) listen(address string) {
 		// Receiving TCPMessage object
 		m := listener.Receive()
 
-		i.data <- m.Bytes()
+		i.data <- RAWData{
+			Data:       m.Bytes(),
+			SrcPort:    m.SourcePort(),
+			DestPort:   m.DestinationPort(),
+			LocalAddr:  i.address,
+			RemoteAddr: m.RemoteAddress(),
+		}
 	}
 }
 

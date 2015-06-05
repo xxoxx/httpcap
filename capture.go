@@ -1,16 +1,17 @@
 package main
 
 import (
-	_ "fmt"
+	"fmt"
 	"io"
 	"net"
+	"runtime/debug"
 	"strings"
 	"time"
 )
 
 func startCapture() {
-	_, defaultIp := GetFirstInterface()
-	ipaddr := strings.Join([]string{defaultIp, Setting.Port}, ":")
+	//_, defaultIp := GetFirstInterface()
+	ipaddr := strings.Join([]string{"0.0.0.0", Setting.Port}, ":")
 	if Setting.InterfaceName != "" {
 		trial := net.ParseIP(Setting.InterfaceName)
 		if trial.To4() == nil {
@@ -34,18 +35,30 @@ func startCapture() {
 	}
 }
 
-func CopyMulty(src io.Reader, writers ...io.Writer) (err error) {
+func CopyMulty(src InputReader, writers ...OutputWriter) (err error) {
+	// Don't exit on panic
+	defer func() {
+		if r := recover(); r != nil {
+			if _, ok := r.(error); !ok {
+				fmt.Printf("PANIC: pkg: %v %s \n", r, debug.Stack())
+			} else {
+				fmt.Printf("PANIC: pkg: %s \n", debug.Stack())
+			}
+			CopyMulty(src, writers...)
+		}
+	}()
+
 	buf := make([]byte, 5*1024*1024)
 	wIndex := 0
 
 	for {
-		nr, er := src.Read(buf)
+		nr, srcPort, destPort, localAddr, remoteAddr, er := src.Read(buf)
 		if nr > 0 && len(buf) > nr {
 			Debug("Sending", src, ": ", string(buf[0:nr]))
 
 			if true {
 				// Simple round robin
-				writers[wIndex].Write(buf[0:nr])
+				writers[wIndex].Write(buf[0:nr], srcPort, destPort, localAddr, remoteAddr)
 
 				wIndex++
 
@@ -54,7 +67,7 @@ func CopyMulty(src io.Reader, writers ...io.Writer) (err error) {
 				}
 			} else {
 				for _, dst := range writers {
-					dst.Write(buf[0:nr])
+					dst.Write(buf[0:nr], srcPort, destPort, localAddr, remoteAddr)
 				}
 			}
 

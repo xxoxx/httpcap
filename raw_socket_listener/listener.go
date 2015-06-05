@@ -4,6 +4,7 @@ import (
 	"encoding/binary"
 	"log"
 	"net"
+	"runtime"
 	"strconv"
 )
 
@@ -60,7 +61,11 @@ func (t *Listener) listen() {
 }
 
 func (t *Listener) readRAWSocket() {
-	conn, e := net.ListenPacket("ip4", t.addr)
+	protocol := "ip4:tcp"
+	if runtime.GOOS == "windows" {
+		protocol = "ip4"
+	}
+	conn, e := net.ListenPacket(protocol, t.addr)
 
 	if e != nil {
 		log.Fatal(e)
@@ -106,12 +111,13 @@ func (t *Listener) isIncomingDataPacket(buf []byte) bool {
 
 		// We need only packets with data inside
 		// Check that the buffer is larger than the size of the TCP header
-		if len(buf) > int(dataOffset*4) {
+		// SYN and  FIN  packets  and ACK-only packets not have data inside : (((ip[2:2] - ((ip[0]&0xf)<<2)) - ((tcp[12]&0xf0)>>2)) != 0)
+		if len(buf) > int(dataOffset*4) && !t.isHeartbeatPackage(buf, dataOffset) {
 			// We should create new buffer because go slices is pointers. So buffer data shoud be immutable.
 			return true
-		} else {
-			return false
 		}
+
+		return false
 	}
 
 	// Because RAW_SOCKET can't be bound to port, we have to control it by ourself
@@ -121,13 +127,17 @@ func (t *Listener) isIncomingDataPacket(buf []byte) bool {
 
 		// We need only packets with data inside
 		// Check that the buffer is larger than the size of the TCP header
-		if len(buf) > int(dataOffset*4) {
+		if len(buf) > int(dataOffset*4) && !t.isHeartbeatPackage(buf, dataOffset) {
 			// We should create new buffer because go slices is pointers. So buffer data shoud be immutable.
 			return true
 		}
 	}
 
 	return false
+}
+
+func (t *Listener) isHeartbeatPackage(buf []byte, dataOffset byte) bool {
+	return (len(buf)-int(dataOffset*4)) == 1 && buf[len(buf)-1] == 0
 }
 
 // Trying to add packet to existing message or creating new message

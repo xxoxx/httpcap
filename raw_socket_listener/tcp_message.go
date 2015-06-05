@@ -82,6 +82,30 @@ func (t *TCPMessage) Bytes() (output []byte) {
 	return
 }
 
+func (t *TCPMessage) SourcePort() uint16 {
+	if len(t.packets) > 0 {
+		return t.packets[0].SrcPort
+	} else {
+		return 0
+	}
+}
+
+func (t *TCPMessage) DestinationPort() uint16 {
+	if len(t.packets) > 0 {
+		return t.packets[0].DestPort
+	} else {
+		return 0
+	}
+}
+
+func (t *TCPMessage) RemoteAddress() string {
+	if len(t.packets) > 0 {
+		return t.packets[0].Addr.String()
+	} else {
+		return ""
+	}
+}
+
 // AddPacket to the message and ensure packet uniqueness
 // TCP allows that packet can be re-send multiple times
 func (t *TCPMessage) AddPacket(packet *TCPPacket) {

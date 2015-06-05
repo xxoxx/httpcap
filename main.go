@@ -36,7 +36,7 @@ func main() {
 		http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 			fmt.Fprintf(w, "Hi there, I love %s!", r.URL.Path[1:])
 		})
-		http.ListenAndServe(":80", nil)
+		http.ListenAndServe(":9888", nil)
 	}()
 
 	app := cli.NewApp()
@@ -51,7 +51,7 @@ func main() {
 		},
 		cli.StringFlag{
 			Name:  "port, p",
-			Value: "80",
+			Value: "",
 			Usage: "port to listen on (default listen on all port)",
 		},
 		cli.BoolFlag{
@@ -90,14 +90,27 @@ func main() {
 
 func ShowAllInterfaces() {
 	ifaces, _ := net.Interfaces()
+
+	iplist := ""
 	for _, iface := range ifaces {
 		addrs, _ := iface.Addrs()
 
 		ipV4 := false
 		ipAddrs := []string{}
 		for _, addr := range addrs {
-			if ip, ok := addr.(*net.IPAddr); ok && !ip.IP.IsUnspecified() {
-				ipAddrs = append(ipAddrs, addr.String())
+			var ip net.IP
+			if ipnet, ok := addr.(*net.IPNet); ok {
+				ip = ipnet.IP
+			} else if ipaddr, ok := addr.(*net.IPAddr); ok {
+				ip = ipaddr.IP
+			}
+			if ip != nil && ip.To4() != nil {
+				ipstr := addr.String()
+				idx := strings.Index(ipstr, "/")
+				if idx >= 0 {
+					ipstr = ipstr[:idx]
+				}
+				ipAddrs = append(ipAddrs, ipstr)
 				ipV4 = true
 			}
 		}
@@ -105,8 +118,11 @@ func ShowAllInterfaces() {
 			continue
 		}
 
-		fmt.Printf("%d %s %s\n", iface.Index, iface.Name, strings.Join(ipAddrs, ", "))
+		iplist += fmt.Sprintf("%-7d %-40s %s\n", iface.Index, iface.Name, strings.Join(ipAddrs, ", "))
 	}
+
+	fmt.Printf("%-7s %-40s %s\n", "index", "interface name", "ip")
+	fmt.Print(iplist)
 }
 
 func GetFirstInterface() (name string, ip string) {
@@ -117,8 +133,19 @@ func GetFirstInterface() (name string, ip string) {
 		ipV4 := false
 		ipAddrs := []string{}
 		for _, addr := range addrs {
-			if ip, ok := addr.(*net.IPAddr); ok && !ip.IP.IsUnspecified() {
-				ipAddrs = append(ipAddrs, addr.String())
+			var ip net.IP
+			if ipnet, ok := addr.(*net.IPNet); ok {
+				ip = ipnet.IP
+			} else if ipaddr, ok := addr.(*net.IPAddr); ok {
+				ip = ipaddr.IP
+			}
+			if ip != nil && ip.To4() != nil && !ip.IsLoopback() {
+				ipstr := addr.String()
+				idx := strings.Index(ipstr, "/")
+				if idx >= 0 {
+					ipstr = ipstr[:idx]
+				}
+				ipAddrs = append(ipAddrs, ipstr)
 				ipV4 = true
 			}
 		}
