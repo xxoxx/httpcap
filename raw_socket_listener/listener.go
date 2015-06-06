@@ -2,10 +2,17 @@ package raw_socket
 
 import (
 	"encoding/binary"
+	_ "fmt"
 	"log"
 	"net"
+	"os"
 	"runtime"
 	"strconv"
+	"syscall"
+)
+
+const (
+	IP_HDRINCL = 2
 )
 
 // Capture traffic from socket using RAW_SOCKET's
@@ -61,41 +68,157 @@ func (t *Listener) listen() {
 }
 
 func (t *Listener) readRAWSocket() {
-	protocol := "ip4:tcp"
+
 	if runtime.GOOS == "windows" {
-		protocol = "ip4"
-	}
-	conn, e := net.ListenPacket(protocol, t.addr)
-
-	if e != nil {
-		log.Fatal(e)
-	}
-
-	defer conn.Close()
-
-	buf := make([]byte, 4096*2)
-
-	for {
-		// Note: ReadFrom receive messages without IP header
-		n, addr, err := conn.ReadFrom(buf)
-
-		if err != nil {
-			log.Println("Error:", err)
-			continue
+		conn, e := net.ListenPacket("ip4", t.addr)
+		if e != nil {
+			log.Fatal(e)
 		}
+		defer conn.Close()
 
-		if n > 0 {
-			t.parsePacket(addr, buf[:n])
+		var n int
+		var addr *net.IPAddr
+		var err error
+		var src_ip string
+		var dest_ip string
+
+		buf := make([]byte, 4096*2)
+		hostIp := getHostIP()
+
+		for {
+
+			// Note: windows not support TCP raw sockage
+			// https://msdn.microsoft.com/en-us/library/windows/desktop/ms740548%28v=vs.85%29.aspx
+			// ReadFromIP receive messages without IP header
+			n, addr, err = conn.(*net.IPConn).ReadFromIP(buf)
+			// TODO: judge windows incoming/outgoing package not accurate, maybe replace with winpcap.
+			if addr.String() == hostIp {
+				// outgoing package
+				src_ip = addr.String()
+				dest_ip = "0.0.0.0" // can't get dest ip
+			} else {
+				// incoming package
+				src_ip = addr.String()
+				dest_ip = hostIp
+			}
+
+			if err != nil {
+				log.Println("Error:", err)
+				continue
+			}
+
+			if n > 0 {
+				t.parsePacket(addr, src_ip, dest_ip, buf[:n])
+			}
+		}
+	} else {
+		fd, e := syscall.Socket(syscall.AF_INET, syscall.SOCK_RAW, syscall.IPPROTO_TCP)
+		if e != nil {
+			log.Printf("Error:%v\n", e)
+			return
+		}
+		defer syscall.Close(fd)
+
+		var n int
+		var addr *net.IPAddr
+		var err error
+		var src_ip string
+		var dest_ip string
+		var sa syscall.Sockaddr
+		buf := make([]byte, 4096*2)
+
+		for {
+
+			n, sa, err = syscall.Recvfrom(fd, buf, 0)
+			if err != nil {
+				log.Println("Error:", err)
+				continue
+			}
+
+			switch sa := sa.(type) {
+			case *syscall.SockaddrInet4:
+				addr = &net.IPAddr{IP: sa.Addr[0:]}
+			case *syscall.SockaddrInet6:
+				addr = &net.IPAddr{IP: sa.Addr[0:], Zone: zoneToString(int(sa.ZoneId))}
+			}
+			src_ip = inet_ntoa(binary.BigEndian.Uint32(buf[12:16])).String()
+			dest_ip = inet_ntoa(binary.BigEndian.Uint32(buf[16:20])).String()
+			n = stripIPv4Header(n, buf)
+
+			if n > 0 {
+				t.parsePacket(addr, src_ip, dest_ip, buf[:n])
+			}
 		}
 	}
+
 }
 
-func (t *Listener) parsePacket(addr net.Addr, buf []byte) {
+func inet_ntoa(ipnr uint32) net.IP {
+	var bytes [4]byte
+	bytes[0] = byte(ipnr & 0xFF)
+	bytes[1] = byte((ipnr >> 8) & 0xFF)
+	bytes[2] = byte((ipnr >> 16) & 0xFF)
+	bytes[3] = byte((ipnr >> 24) & 0xFF)
+
+	return net.IPv4(bytes[3], bytes[2], bytes[1], bytes[0])
+}
+
+func stripIPv4Header(n int, b []byte) int {
+	if len(b) < 20 {
+		return n
+	}
+	l := int(b[0]&0x0f) << 2
+	if 20 > l || l > len(b) {
+		return n
+	}
+	if b[0]>>4 != 4 {
+		return n
+	}
+	copy(b, b[l:])
+	return n - l
+}
+
+func zoneToString(zone int) string {
+	if zone == 0 {
+		return ""
+	}
+	if ifi, err := net.InterfaceByIndex(zone); err == nil {
+		return ifi.Name
+	}
+
+	return uitoa(uint(zone))
+}
+
+func uitoa(val uint) string {
+	var buf [32]byte // big enough for int64
+	i := len(buf) - 1
+	for val >= 10 {
+		buf[i] = byte(val%10 + '0')
+		i--
+		val /= 10
+	}
+	buf[i] = byte(val + '0')
+	return string(buf[i:])
+}
+
+func getHostIP() string {
+	host, _ := os.Hostname()
+	addrs, _ := net.LookupIP(host)
+	for _, addr := range addrs {
+		if addr.To4() != nil && !addr.IsLoopback() {
+			return addr.String()
+		}
+	}
+
+	return "127.0.0.1"
+}
+
+func (t *Listener) parsePacket(addr net.Addr, src_ip string, dest_ip string, buf []byte) {
 	if t.isIncomingDataPacket(buf) {
 		new_buf := make([]byte, len(buf))
 		copy(new_buf, buf)
 
-		t.c_packets <- ParseTCPPacket(addr, new_buf)
+		t.c_packets <- ParseTCPPacket(addr, src_ip, dest_ip, new_buf)
 	}
 }
 

@@ -52,13 +52,13 @@ func CopyMulty(src InputReader, writers ...OutputWriter) (err error) {
 	wIndex := 0
 
 	for {
-		nr, srcPort, destPort, localAddr, remoteAddr, er := src.Read(buf)
+		nr, srcPort, destPort, srcAddr, destAddr, er := src.Read(buf)
 		if nr > 0 && len(buf) > nr {
 			Debug("Sending", src, ": ", string(buf[0:nr]))
 
 			if true {
 				// Simple round robin
-				writers[wIndex].Write(buf[0:nr], srcPort, destPort, localAddr, remoteAddr)
+				writers[wIndex].Write(buf[0:nr], srcPort, destPort, srcAddr, destAddr)
 
 				wIndex++
 
@@ -67,7 +67,7 @@ func CopyMulty(src InputReader, writers ...OutputWriter) (err error) {
 				}
 			} else {
 				for _, dst := range writers {
-					dst.Write(buf[0:nr], srcPort, destPort, localAddr, remoteAddr)
+					dst.Write(buf[0:nr], srcPort, destPort, srcAddr, destAddr)
 				}
 			}
 

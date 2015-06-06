@@ -29,7 +29,7 @@ func (i *RAWInput) Read(data []byte) (int, uint16, uint16, string, string, error
 	raw := <-i.data
 	copy(data, raw.Data)
 
-	return len(raw.Data), raw.SrcPort, raw.DestPort, raw.LocalAddr, raw.RemoteAddr, nil
+	return len(raw.Data), raw.SrcPort, raw.DestPort, raw.SrcAddr, raw.DestAddr, nil
 }
 
 func (i *RAWInput) listen(address string) {
@@ -39,9 +39,9 @@ func (i *RAWInput) listen(address string) {
 
 	listen_port, _ := strconv.Atoi(port)
 	if listen_port <= 0 {
-		fmt.Printf("listen on %s\n", host)
+		fmt.Printf("listen on %s\n\n", host)
 	} else {
-		fmt.Printf("listen on %s\n", address)
+		fmt.Printf("listen on %s\n\n", address)
 	}
 
 	if err != nil {
@@ -55,11 +55,12 @@ func (i *RAWInput) listen(address string) {
 		m := listener.Receive()
 
 		i.data <- RAWData{
-			Data:       m.Bytes(),
-			SrcPort:    m.SourcePort(),
-			DestPort:   m.DestinationPort(),
-			LocalAddr:  i.address,
-			RemoteAddr: m.RemoteAddress(),
+			Data:      m.Bytes(),
+			SrcPort:   m.SourcePort(),
+			DestPort:  m.DestinationPort(),
+			LocalAddr: i.address,
+			SrcAddr:   m.SourceIP(),
+			DestAddr:  m.DestinationIP(),
 		}
 	}
 }

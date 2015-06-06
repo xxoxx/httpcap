@@ -98,11 +98,19 @@ func (t *TCPMessage) DestinationPort() uint16 {
 	}
 }
 
-func (t *TCPMessage) RemoteAddress() string {
+func (t *TCPMessage) SourceIP() string {
 	if len(t.packets) > 0 {
-		return t.packets[0].Addr.String()
+		return t.packets[0].SrcIP
 	} else {
-		return ""
+		return "0.0.0.0"
+	}
+}
+
+func (t *TCPMessage) DestinationIP() string {
+	if len(t.packets) > 0 {
+		return t.packets[0].DestIP
+	} else {
+		return "0.0.0.0"
 	}
 }
 

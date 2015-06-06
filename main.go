@@ -18,6 +18,7 @@ type Flags struct {
 	Port          string
 	Format        string
 	Raw           bool
+	Filter        string
 }
 
 var Setting Flags
@@ -59,9 +60,14 @@ func main() {
 			Usage: "show raw stream. it is a shortcut for -l %request%response",
 		},
 		cli.StringFlag{
-			Name:  "format, f",
+			Name:  "format, t",
 			Value: "",
 			Usage: "log format. You can specify the output string format containing reserved keyword that will be replaced with the proper value",
+		},
+		cli.StringFlag{
+			Name:  "filter, f",
+			Value: "",
+			Usage: "filte output that the request url match keywords",
 		},
 		cli.BoolFlag{
 			Name:  "verbose, V",
@@ -81,6 +87,7 @@ func main() {
 		Setting.InterfaceName = c.String("interface")
 		Setting.Port = c.String("port")
 		Setting.Format = c.String("format")
+		Setting.Filter = c.String("filter")
 		Setting.Raw = c.Bool("raw")
 		startCapture()
 	}
