@@ -2,7 +2,7 @@ package raw_socket
 
 import (
 	"encoding/binary"
-	_ "fmt"
+	"fmt"
 	"log"
 	"net"
 	"os"
@@ -117,6 +117,8 @@ func (t *Listener) readRAWSocket() {
 			log.Printf("Error:%v\n", e)
 			return
 		}
+		f := os.NewFile(uintptr(fd), fmt.Sprintf("fd %d", fd))
+		defer f.Close()
 		defer syscall.Close(fd)
 
 		var n int
@@ -124,25 +126,22 @@ func (t *Listener) readRAWSocket() {
 		var err error
 		var src_ip string
 		var dest_ip string
-		var sa syscall.Sockaddr
+		// var sa syscall.Sockaddr
 		buf := make([]byte, 4096*2)
 
 		for {
 
-			n, sa, err = syscall.Recvfrom(fd, buf, 0)
+			//n, sa, err = syscall.Recvfrom(fd, buf, 0)
+			n, err = f.Read(buf)
 			if err != nil {
 				log.Println("Error:", err)
 				continue
 			}
 
-			switch sa := sa.(type) {
-			case *syscall.SockaddrInet4:
-				addr = &net.IPAddr{IP: sa.Addr[0:]}
-			case *syscall.SockaddrInet6:
-				addr = &net.IPAddr{IP: sa.Addr[0:], Zone: zoneToString(int(sa.ZoneId))}
-			}
+			addr = &net.IPAddr{}
 			src_ip = inet_ntoa(binary.BigEndian.Uint32(buf[12:16])).String()
 			dest_ip = inet_ntoa(binary.BigEndian.Uint32(buf[16:20])).String()
+			fmt.Printf("%s => %s\n", src_ip, dest_ip)
 			n = stripIPv4Header(n, buf)
 
 			if n > 0 {
