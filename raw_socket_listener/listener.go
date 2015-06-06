@@ -2,13 +2,12 @@ package raw_socket
 
 import (
 	"encoding/binary"
-	"fmt"
+	_ "fmt"
 	"log"
 	"net"
 	"os"
 	"runtime"
 	"strconv"
-	"syscall"
 )
 
 const (
@@ -68,13 +67,22 @@ func (t *Listener) listen() {
 }
 
 func (t *Listener) readRAWSocket() {
-
+	protocol := "ip4:tcp"
 	if runtime.GOOS == "windows" {
-		conn, e := net.ListenPacket("ip4", t.addr)
-		if e != nil {
-			log.Fatal(e)
-		}
-		defer conn.Close()
+		protocol = "ip4"
+	}
+
+	conn, e := net.ListenPacket(protocol, t.addr)
+	if e != nil {
+		log.Fatal(e)
+	}
+	defer conn.Close()
+
+	buf := make([]byte, 4096*2)
+	oob := make([]byte, 4096*2)
+	hostIp := getHostIP()
+
+	for {
 
 		var n int
 		var addr *net.IPAddr
@@ -82,14 +90,10 @@ func (t *Listener) readRAWSocket() {
 		var src_ip string
 		var dest_ip string
 
-		buf := make([]byte, 4096*2)
-		hostIp := getHostIP()
-
-		for {
-
-			// Note: windows not support TCP raw sockage
-			// https://msdn.microsoft.com/en-us/library/windows/desktop/ms740548%28v=vs.85%29.aspx
-			// ReadFromIP receive messages without IP header
+		// Note: windows not support TCP raw sockage
+		// https://msdn.microsoft.com/en-us/library/windows/desktop/ms740548%28v=vs.85%29.aspx
+		if runtime.GOOS == "windows" {
+			// Note: ReadFromIP receive messages without IP header
 			n, addr, err = conn.(*net.IPConn).ReadFromIP(buf)
 			// TODO: judge windows incoming/outgoing package not accurate, maybe replace with winpcap.
 			if addr.String() == hostIp {
@@ -101,55 +105,22 @@ func (t *Listener) readRAWSocket() {
 				src_ip = addr.String()
 				dest_ip = hostIp
 			}
-
-			if err != nil {
-				log.Println("Error:", err)
-				continue
-			}
-
-			if n > 0 {
-				t.parsePacket(addr, src_ip, dest_ip, buf[:n])
-			}
-		}
-	} else {
-		fd, e := syscall.Socket(syscall.AF_INET, syscall.SOCK_RAW, syscall.IPPROTO_TCP)
-		if e != nil {
-			log.Printf("Error:%v\n", e)
-			return
-		}
-		f := os.NewFile(uintptr(fd), fmt.Sprintf("fd %d", fd))
-		defer f.Close()
-		defer syscall.Close(fd)
-
-		var n int
-		var addr *net.IPAddr
-		var err error
-		var src_ip string
-		var dest_ip string
-		// var sa syscall.Sockaddr
-		buf := make([]byte, 4096*2)
-
-		for {
-
-			//n, sa, err = syscall.Recvfrom(fd, buf, 0)
-			n, err = f.Read(buf)
-			if err != nil {
-				log.Println("Error:", err)
-				continue
-			}
-
-			addr = &net.IPAddr{}
+		} else {
+			n, _, _, addr, err = conn.(*net.IPConn).ReadMsgIP(buf, oob)
 			src_ip = inet_ntoa(binary.BigEndian.Uint32(buf[12:16])).String()
 			dest_ip = inet_ntoa(binary.BigEndian.Uint32(buf[16:20])).String()
-			fmt.Printf("%s => %s\n", src_ip, dest_ip)
 			n = stripIPv4Header(n, buf)
+		}
 
-			if n > 0 {
-				t.parsePacket(addr, src_ip, dest_ip, buf[:n])
-			}
+		if err != nil {
+			log.Println("Error:", err)
+			continue
+		}
+
+		if n > 0 {
+			t.parsePacket(addr, src_ip, dest_ip, buf[:n])
 		}
 	}
-
 }
 
 func inet_ntoa(ipnr uint32) net.IP {
@@ -175,29 +146,6 @@ func stripIPv4Header(n int, b []byte) int {
 	}
 	copy(b, b[l:])
 	return n - l
-}
-
-func zoneToString(zone int) string {
-	if zone == 0 {
-		return ""
-	}
-	if ifi, err := net.InterfaceByIndex(zone); err == nil {
-		return ifi.Name
-	}
-
-	return uitoa(uint(zone))
-}
-
-func uitoa(val uint) string {
-	var buf [32]byte // big enough for int64
-	i := len(buf) - 1
-	for val >= 10 {
-		buf[i] = byte(val%10 + '0')
-		i--
-		val /= 10
-	}
-	buf[i] = byte(val + '0')
-	return string(buf[i:])
 }
 
 func getHostIP() string {
