@@ -27,12 +27,21 @@ func (t *Listener) readRAWSocket() {
 	}
 	defer syscall.Close(fd)
 
-	la := &syscall.SockaddrInet4{}
+	ip := net.ParseIP(t.addr)
+	if len(t.addr) == 0 || t.addr == "0.0.0.0" {
+		ip = net.IPv4zero
+	}
+	if ip = ip.To4(); ip == nil {
+		log.Fatalln("Error: non-IPv4 address " + t.addr)
+	}
+	la := new(syscall.SockaddrInet4)
+	for i := 0; i < net.IPv4len; i++ {
+		la.Addr[i] = ip[i]
+	}
 	if err := syscall.Bind(fd, la); err != nil {
 		log.Fatalln("Error:Bind", err)
 	}
 
-	var addr *net.IPAddr
 	var src_ip string
 	var dest_ip string
 	var flags uint32
@@ -60,9 +69,18 @@ func (t *Listener) readRAWSocket() {
 		if tcpLayer := packet.Layer(layers.LayerTypeTCP); tcpLayer != nil {
 			tcp, _ := tcpLayer.(*layers.TCP)
 
-			addr = &net.IPAddr{}
+			// pp := (*syscall.RawSockaddrInet4)(unsafe.Pointer(rsa))
+			// sa := new(syscall.SockaddrInet4)
+			// p := (*[2]byte)(unsafe.Pointer(&pp.Port))
+			// sa.Port = int(p[0])<<8 + int(p[1])
+			// for i := 0; i < len(sa.Addr); i++ {
+			// 	sa.Addr[i] = pp.Addr[i]
+			// }
+			// remoteAddr := &net.IPAddr{IP: net.IPv4(sa.Addr[0], sa.Addr[1], sa.Addr[2], sa.Addr[3])}
+
 			src_ip = packet.NetworkLayer().NetworkFlow().Src().String()
 			dest_ip = packet.NetworkLayer().NetworkFlow().Dst().String()
+			remoteAddr := &net.IPAddr{IP: net.ParseIP(src_ip)}
 			n := len(tcp.Contents) + len(tcp.Payload)
 			if len(tcp.Contents) > 0 {
 				copy(buf, tcp.Contents)
@@ -71,7 +89,7 @@ func (t *Listener) readRAWSocket() {
 				copy(buf[len(tcp.Contents):], tcp.Payload)
 			}
 
-			t.parsePacket(addr, src_ip, dest_ip, buf[:n])
+			t.parsePacket(remoteAddr, src_ip, dest_ip, buf[:n])
 		}
 	}
 

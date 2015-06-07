@@ -48,6 +48,7 @@ var locker *sync.Mutex = &sync.Mutex{}
 var hasShowHeaderDesc = false
 
 func (i *HttpOutput) Write(data []byte, srcPort uint16, destPort uint16, srcAddr string, destAddr string) (int, error) {
+
 	if i.isHttps(srcPort, destPort) {
 		// TODO: can't get CONNECT request
 		// https package
@@ -201,6 +202,7 @@ func (i *HttpOutput) OutputRAW(requestData *httpRequestData, response *http.Resp
 			i.OutputBody(body)
 		}
 
+		color.Println("Response:", color.Yellow)
 		color.PrintlnRequest(rawResponseHeader)
 		if response.Body != nil {
 			defer response.Body.Close()
@@ -218,6 +220,7 @@ func (i *HttpOutput) OutputRAW(requestData *httpRequestData, response *http.Resp
 		}
 
 	} else {
+		color.Println("Response:", color.Yellow)
 		color.PrintlnRequest(rawResponseHeader)
 		if response.Body != nil {
 			defer response.Body.Close()
@@ -260,7 +263,7 @@ func (i *HttpOutput) showHeaderDescription() {
 // checks if s is ascii and printable, aka doesn't include tab, backspace, etc.
 func (i *HttpOutput) IsPrintable(s string) bool {
 	for _, r := range s {
-		if r > unicode.MaxASCII || !unicode.IsPrint(r) {
+		if !unicode.IsPrint(r) && r != rune('\t') && r != rune('\r') && r != rune('\n') {
 			return false
 		}
 	}

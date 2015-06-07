@@ -2,6 +2,7 @@ package raw_socket
 
 import (
 	"encoding/binary"
+	_ "fmt"
 	"net"
 	"os"
 	"strconv"

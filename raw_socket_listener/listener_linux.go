@@ -18,17 +18,22 @@ func (t *Listener) readRAWSocket() {
 	// AF_INET can't capture outgoing packets, must change to use AF_PACKET
 	// https://github.com/golang/go/issues/7653
 	// http://www.binarytides.com/packet-sniffer-code-in-c-using-linux-sockets-bsd-part-2/
-	tp, e := afpacket.NewTPacket(afpacket.SocketRaw)
-	if e != nil {
-		log.Fatalln("Error:", e)
+	var tp *afpacket.TPacket
+	var err error
+	if t.addr == "" || t.addr == "0.0.0.0" {
+		tp, err = afpacket.NewTPacket(afpacket.SocketRaw)
+	} else {
+		tp, err = afpacket.NewTPacket(afpacket.SocketRaw, afpacket.OptInterface(t.addr))
+	}
+	if err != nil {
+		log.Fatalln("Error:", err)
 		return
 	}
 	defer tp.Close()
 
-	var addr *net.IPAddr
 	var src_ip string
 	var dest_ip string
-	tcpBuf := make([]byte, 4096*2)
+	tcpBuf := make([]byte, 65536)
 
 	for {
 		buf, _, err := tp.ReadPacketData()
@@ -44,9 +49,9 @@ func (t *Listener) readRAWSocket() {
 		if tcpLayer := packet.Layer(layers.LayerTypeTCP); tcpLayer != nil {
 			tcp, _ := tcpLayer.(*layers.TCP)
 
-			addr = &net.IPAddr{}
 			src_ip = packet.NetworkLayer().NetworkFlow().Src().String()
 			dest_ip = packet.NetworkLayer().NetworkFlow().Dst().String()
+			remoteAddr := &net.IPAddr{IP: net.ParseIP(src_ip)}
 			n := len(tcp.Contents) + len(tcp.Payload)
 			if len(tcp.Contents) > 0 {
 				copy(tcpBuf, tcp.Contents)
@@ -55,7 +60,7 @@ func (t *Listener) readRAWSocket() {
 				copy(tcpBuf[len(tcp.Contents):], tcp.Payload)
 			}
 
-			t.parsePacket(addr, src_ip, dest_ip, tcpBuf[:n])
+			t.parsePacket(remoteAddr, src_ip, dest_ip, tcpBuf[:n])
 		}
 
 	}

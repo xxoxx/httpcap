@@ -113,7 +113,7 @@ func ShowAllInterfaces() {
 			} else if ipaddr, ok := addr.(*net.IPAddr); ok {
 				ip = ipaddr.IP
 			}
-			if ip != nil && ip.To4() != nil {
+			if ip != nil && ip.To4() != nil && !ip.IsUnspecified() {
 				ipstr := addr.String()
 				idx := strings.Index(ipstr, "/")
 				if idx >= 0 {
@@ -132,57 +132,6 @@ func ShowAllInterfaces() {
 
 	fmt.Printf("%-7s %-40s %s\n", "index", "interface name", "ip")
 	fmt.Print(iplist)
-}
-
-func GetFirstInterface() (name string, ip string) {
-	ifaces, _ := net.Interfaces()
-	for _, iface := range ifaces {
-		addrs, _ := iface.Addrs()
-
-		ipV4 := false
-		ipAddrs := []string{}
-		for _, addr := range addrs {
-			var ip net.IP
-			if ipnet, ok := addr.(*net.IPNet); ok {
-				ip = ipnet.IP
-			} else if ipaddr, ok := addr.(*net.IPAddr); ok {
-				ip = ipaddr.IP
-			}
-			if ip != nil && ip.To4() != nil && !ip.IsLoopback() {
-				ipstr := addr.String()
-				idx := strings.Index(ipstr, "/")
-				if idx >= 0 {
-					ipstr = ipstr[:idx]
-				}
-				ipAddrs = append(ipAddrs, ipstr)
-				ipV4 = true
-			}
-		}
-		if !ipV4 {
-			continue
-		}
-
-		return iface.Name, ipAddrs[0]
-	}
-
-	return "localhost", "127.0.0.1"
-}
-
-func GetIp(iface *net.Interface) string {
-	addrs, _ := iface.Addrs()
-
-	ipAddrs := []string{}
-	for _, addr := range addrs {
-		if ip, ok := addr.(*net.IPAddr); ok && !ip.IP.IsUnspecified() {
-			ipAddrs = append(ipAddrs, addr.String())
-		}
-	}
-
-	if len(ipAddrs) > 0 {
-		return ipAddrs[0]
-	} else {
-		return ""
-	}
 }
 
 func Debug(args ...interface{}) {
