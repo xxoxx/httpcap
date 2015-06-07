@@ -1,23 +1,17 @@
-package main
+package color
 
 import (
 	"encoding/json"
 	"fmt"
+	"os"
 	"strings"
 
-	"runtime"
+	"github.com/shiena/ansicolor"
 )
 
-const (
-	Gray = uint8(iota + 90)
-	Red
-	Green
-	Yellow
-	Blue
-	Magenta
-	Cyan
-	White
+var w = ansicolor.NewAnsiColorWriter(os.Stdout)
 
+const (
 	EndColor         = "\033[0m"
 	printV           = "A"
 	contentJsonRegex = `application/json`
@@ -28,14 +22,10 @@ func Color(str string, color uint8) string {
 }
 
 func ColorStart(color uint8) string {
-	if runtime.GOOS == "windows" {
-		return fmt.Sprintf("\033[%dm", color-60)
-	} else {
-		return fmt.Sprintf("\033[%dm", color)
-	}
+	return fmt.Sprintf("\033[%dm", color)
 }
 
-func ColorRequestMethod(method string) uint8 {
+func MethodColor(method string) uint8 {
 	switch method {
 	case "GET":
 		return Yellow
@@ -46,7 +36,7 @@ func ColorRequestMethod(method string) uint8 {
 	case "PUT":
 		return Magenta
 	default:
-		return Gray
+		return Cyan
 	}
 }
 
@@ -54,14 +44,14 @@ func ColorfulRequestLine(str string) string {
 	strs := strings.Split(str, " ")
 
 	count := 0
-	color := Gray
+	color := Default
 	for i, str := range strs {
 		if strings.TrimSpace(str) != "" {
 			switch count {
 			case 1:
 				strs[i] = Color(strs[i], Cyan)
 			case 3:
-				color = ColorRequestMethod(strs[i])
+				color = MethodColor(strs[i])
 				strs[i] = Color(strs[i], color)
 			case 4:
 				strs[i] = Color(strs[i], color)
@@ -75,7 +65,7 @@ func ColorfulRequestLine(str string) string {
 	return strings.Join(strs, " ")
 }
 
-func ColorfulRequest(str string) string {
+func sprintRequest(str string) string {
 	idx := 0
 	lines := strings.Split(str, "\n")
 	if printV == "A" || printV == "H" {
@@ -93,20 +83,49 @@ func ColorfulRequest(str string) string {
 		if len(substr) < 2 {
 			continue
 		}
-		substr[0] = Color(substr[0], Gray)
+		substr[0] = Color(substr[0], Default)
 		substr[1] = Color(strings.Join(substr[1:], ":"), Cyan)
 		lines[i+1] = strings.Join(substr[:2], ":")
 	}
+
 	return strings.Join(lines, "\n")
 }
 
-func ColorfulResponse(str string) string {
+func PrintlnRequest(str string) {
+	fmt.Fprintln(w, sprintRequest(str))
+}
+func PrintRequest(str string) {
+	fmt.Fprint(w, sprintRequest(str))
+}
+
+func PrintlnResponse(str string) {
 	if isJSON(str) {
 		str = ColorfulJson(str)
 	} else {
 		str = ColorfulHTML(str)
 	}
-	return str
+	fmt.Fprintln(w, str)
+}
+
+func PrintResponse(str string) {
+	if isJSON(str) {
+		str = ColorfulJson(str)
+	} else {
+		str = ColorfulHTML(str)
+	}
+	fmt.Fprint(w, str)
+}
+
+func Println(str string, color uint8) {
+	fmt.Fprintln(w, Color(str, color))
+}
+
+func Print(str string, color uint8) {
+	fmt.Fprint(w, Color(str, color))
+}
+
+func Printf(format string, color uint8, params ...interface{}) {
+	fmt.Fprint(w, Color(fmt.Sprintf(format, params...), color))
 }
 
 func ColorfulJson(str string) string {

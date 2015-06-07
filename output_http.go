@@ -4,23 +4,21 @@ import (
 	"bufio"
 	"bytes"
 	"compress/gzip"
+	"encoding/hex"
 	"fmt"
 	"io"
 	"io/ioutil"
 	"log"
 	"net/http"
 	"net/textproto"
-	"os"
-	"runtime"
 	"sort"
 	"strings"
 	"sync"
 	"time"
+	"unicode"
 
-	"github.com/shiena/ansicolor"
+	"http-sniffer/color"
 )
-
-var w = ansicolor.NewAnsiColorWriter(os.Stdout)
 
 type HttpOutput struct {
 	requests map[string]*httpRequestData
@@ -47,6 +45,7 @@ func NewHttpOutput(options string) (di *HttpOutput) {
 var request *http.Request
 var err error
 var locker *sync.Mutex = &sync.Mutex{}
+var hasShowHeaderDesc = false
 
 func (i *HttpOutput) Write(data []byte, srcPort uint16, destPort uint16, srcAddr string, destAddr string) (int, error) {
 	if i.isHttps(srcPort, destPort) {
@@ -82,21 +81,17 @@ func (i *HttpOutput) Write(data []byte, srcPort uint16, destPort uint16, srcAddr
 			destAddr: destAddr,
 			addTime:  time.Now(),
 		}
-		if runtime.GOOS == "windows" {
-			// windows can't get destination address, direct output
-			i.Output(&requestData, nil, "")
-		} else {
-			fmt.Println(i.requests)
-			key := i.key(srcAddr, destAddr, srcPort, destPort)
-			locker.Lock()
-			checkRequestData, found := i.requests[key]
-			if found {
-				// conflict with prev request
-				i.Output(checkRequestData, nil, "")
-			}
-			i.requests[key] = &requestData
-			locker.Unlock()
+
+		key := i.key(srcAddr, destAddr, srcPort, destPort)
+		locker.Lock()
+		checkRequestData, found := i.requests[key]
+		if found {
+			// conflict with prev request
+			i.Output(checkRequestData, nil, "")
 		}
+		i.requests[key] = &requestData
+		locker.Unlock()
+
 	}
 
 	if i.isResponse(data) {
@@ -157,14 +152,14 @@ func (i *HttpOutput) Output(requestData *httpRequestData, response *http.Respons
 	}
 
 	if requestData != nil && response != nil {
-
-		fmt.Fprintln(w, Color(fmt.Sprintf("%-24s %-5d %-5d %-5s %s",
+		i.showHeaderDescription()
+		color.Printf("%-24s %-5d %-5d %-5s %s\n",
+			color.MethodColor(requestData.request.Method),
 			time.Now().Format("2006-01-02 15:04:05"),
 			response.StatusCode,
 			response.ContentLength,
 			requestData.request.Method,
-			"http://"+requestData.request.Host+requestData.request.RequestURI),
-			ColorRequestMethod(requestData.request.Method)))
+			"http://"+requestData.request.Host+requestData.request.RequestURI)
 		if requestData.request.Body != nil {
 			defer requestData.request.Body.Close()
 		}
@@ -175,13 +170,14 @@ func (i *HttpOutput) Output(requestData *httpRequestData, response *http.Respons
 			i.OutputBody(body)
 		}
 	} else if requestData != nil {
-		fmt.Fprintln(w, Color(fmt.Sprintf("%-24s %-5s %-5s %-5s %s",
+		i.showHeaderDescription()
+		color.Printf("%-24s %-5s %-5s %-5s %s\n",
+			color.MethodColor(requestData.request.Method),
 			time.Now().Format("2006-01-02 15:04:05"),
 			"-",
 			"-",
 			requestData.request.Method,
-			"http://"+requestData.request.Host+requestData.request.RequestURI),
-			ColorRequestMethod(requestData.request.Method)))
+			"http://"+requestData.request.Host+requestData.request.RequestURI)
 		if requestData.request.Body != nil {
 			defer requestData.request.Body.Close()
 		}
@@ -197,7 +193,7 @@ func (i *HttpOutput) Output(requestData *httpRequestData, response *http.Respons
 
 func (i *HttpOutput) OutputRAW(requestData *httpRequestData, response *http.Response, rawResponseHeader string) {
 	if requestData != nil && response != nil {
-		fmt.Fprintln(w, ColorfulRequest(requestData.header))
+		color.PrintlnRequest(requestData.header)
 		if requestData.request.Body != nil {
 			defer requestData.request.Body.Close()
 
@@ -205,7 +201,7 @@ func (i *HttpOutput) OutputRAW(requestData *httpRequestData, response *http.Resp
 			i.OutputBody(body)
 		}
 
-		fmt.Fprintln(w, ColorfulRequest(rawResponseHeader))
+		color.PrintlnRequest(rawResponseHeader)
 		if response.Body != nil {
 			defer response.Body.Close()
 
@@ -213,7 +209,7 @@ func (i *HttpOutput) OutputRAW(requestData *httpRequestData, response *http.Resp
 			i.OutputBody(body)
 		}
 	} else if requestData != nil {
-		fmt.Fprintln(w, ColorfulRequest(requestData.header))
+		color.PrintlnRequest(requestData.header)
 		if requestData.request.Body != nil {
 			defer requestData.request.Body.Close()
 
@@ -222,7 +218,7 @@ func (i *HttpOutput) OutputRAW(requestData *httpRequestData, response *http.Resp
 		}
 
 	} else {
-		fmt.Fprintln(w, ColorfulRequest(rawResponseHeader))
+		color.PrintlnRequest(rawResponseHeader)
 		if response.Body != nil {
 			defer response.Body.Close()
 
@@ -235,7 +231,40 @@ func (i *HttpOutput) OutputRAW(requestData *httpRequestData, response *http.Resp
 }
 
 func (i *HttpOutput) OutputBody(body []byte) {
-	fmt.Fprintln(w, ColorfulResponse(i.SubString(string(body), 500)))
+	content := i.SubString(string(body), 500)
+	if strings.TrimSpace(content) == "" {
+		return
+	}
+	if i.IsPrintable(content) {
+		color.PrintlnResponse(content)
+	} else {
+		// can't printable char, encode to hex
+		color.PrintResponse(hex.EncodeToString([]byte(content)) + " ")
+		color.Println("<unprintable characters>", color.Default)
+	}
+}
+
+func (i *HttpOutput) showHeaderDescription() {
+	if !hasShowHeaderDesc {
+		fmt.Printf("%-21s %-5s %-5s %-5s %s\n",
+			"time",
+			"status",
+			"length",
+			"method",
+			"url")
+		hasShowHeaderDesc = true
+	}
+
+}
+
+// checks if s is ascii and printable, aka doesn't include tab, backspace, etc.
+func (i *HttpOutput) IsPrintable(s string) bool {
+	for _, r := range s {
+		if r > unicode.MaxASCII || !unicode.IsPrint(r) {
+			return false
+		}
+	}
+	return true
 }
 
 func (i *HttpOutput) SubString(text string, maxLen int) string {
@@ -303,7 +332,8 @@ func (i *HttpOutput) allowShowResponseBody(contentType string) bool {
 	contentType = strings.ToLower(contentType)
 	switch {
 	case strings.Contains(contentType, "text/"),
-		strings.Contains(contentType, "application/json"):
+		strings.Contains(contentType, "application/json"),
+		strings.Contains(contentType, "application/x-javascript"):
 		return true
 	}
 
