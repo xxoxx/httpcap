@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"log"
 	"net"
-	"net/http"
 	"os"
 	"runtime/debug"
 	"strings"
@@ -13,12 +12,13 @@ import (
 )
 
 type Flags struct {
-	Verbose       bool
-	InterfaceName string
-	Port          string
-	Format        string
-	Raw           bool
-	Filter        string
+	Verbose            bool
+	InterfaceName      string
+	Port               string
+	Format             string
+	Raw                bool
+	Filter             string
+	TruncateBodyLength int
 }
 
 var (
@@ -33,13 +33,6 @@ func main() {
 				fmt.Printf("PANIC: pkg: %v %s \n", r, debug.Stack())
 			}
 		}
-	}()
-
-	go func() {
-		http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-			fmt.Fprintf(w, "Hi there, I love %s!", r.URL.Path[1:])
-		})
-		http.ListenAndServe(":9888", nil)
 	}()
 
 	app := cli.NewApp()
@@ -62,14 +55,19 @@ func main() {
 			Usage: "show raw stream. it is a shortcut for -l %request%response",
 		},
 		cli.StringFlag{
-			Name:  "format, t",
+			Name:  "format, f",
 			Value: "",
-			Usage: "log format. You can specify the output string format containing reserved keyword that will be replaced with the proper value",
+			Usage: "output format. You can specify the output string format containing reserved keyword that will be replaced with the proper value",
 		},
 		cli.StringFlag{
-			Name:  "filter, f",
+			Name:  "keyword, k",
 			Value: "",
-			Usage: "filte output that the request url match keywords",
+			Usage: "filte output with the keyword in request url",
+		},
+		cli.IntFlag{
+			Name:  "length, l",
+			Value: 500,
+			Usage: "the length to truncate response body (default 500, 0 - no limit)",
 		},
 		cli.BoolFlag{
 			Name:  "verbose, V",
@@ -89,7 +87,8 @@ func main() {
 		Setting.InterfaceName = c.String("interface")
 		Setting.Port = c.String("port")
 		Setting.Format = c.String("format")
-		Setting.Filter = c.String("filter")
+		Setting.Filter = c.String("keyword")
+		Setting.TruncateBodyLength = c.Int("length")
 		Setting.Raw = c.Bool("raw")
 		startCapture()
 	}

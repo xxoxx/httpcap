@@ -4,7 +4,7 @@ import (
 	"encoding/binary"
 	_ "fmt"
 	"net"
-	"os"
+	_ "os"
 	"strconv"
 )
 
@@ -62,66 +62,6 @@ func (t *Listener) listen() {
 			t.processTCPPacket(packet)
 		}
 	}
-}
-
-func inet_ntoa(ipnr uint32) net.IP {
-	var bytes [4]byte
-	bytes[0] = byte(ipnr & 0xFF)
-	bytes[1] = byte((ipnr >> 8) & 0xFF)
-	bytes[2] = byte((ipnr >> 16) & 0xFF)
-	bytes[3] = byte((ipnr >> 24) & 0xFF)
-
-	return net.IPv4(bytes[3], bytes[2], bytes[1], bytes[0])
-}
-
-func stripIPv4Header(n int, b []byte) int {
-	if len(b) < 20 {
-		return n
-	}
-	l := int(b[0]&0x0f) << 2
-	if 20 > l || l > len(b) {
-		return n
-	}
-	if b[0]>>4 != 4 {
-		return n
-	}
-	copy(b, b[l:])
-	return n - l
-}
-
-func zoneToString(zone int) string {
-	if zone == 0 {
-		return ""
-	}
-	if ifi, err := net.InterfaceByIndex(zone); err == nil {
-		return ifi.Name
-	}
-
-	return uitoa(uint(zone))
-}
-
-func uitoa(val uint) string {
-	var buf [32]byte // big enough for int64
-	i := len(buf) - 1
-	for val >= 10 {
-		buf[i] = byte(val%10 + '0')
-		i--
-		val /= 10
-	}
-	buf[i] = byte(val + '0')
-	return string(buf[i:])
-}
-
-func getHostIP() string {
-	host, _ := os.Hostname()
-	addrs, _ := net.LookupIP(host)
-	for _, addr := range addrs {
-		if addr.To4() != nil && !addr.IsLoopback() {
-			return addr.String()
-		}
-	}
-
-	return "127.0.0.1"
 }
 
 func (t *Listener) parsePacket(addr net.Addr, src_ip string, dest_ip string, buf []byte) {

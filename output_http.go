@@ -152,6 +152,11 @@ func (i *HttpOutput) Output(requestData *httpRequestData, response *http.Respons
 		return
 	}
 
+	if strings.TrimSpace(Setting.Format) != "" {
+		i.OutputRequestLine(requestData, response, rawResponseHeader)
+		return
+	}
+
 	if requestData != nil && response != nil {
 		i.showHeaderDescription()
 		color.Printf("%-24s %-5d %-5d %-5s %s\n",
@@ -161,6 +166,7 @@ func (i *HttpOutput) Output(requestData *httpRequestData, response *http.Respons
 			response.ContentLength,
 			requestData.request.Method,
 			"http://"+requestData.request.Host+requestData.request.RequestURI)
+		i.OutputRequestLine(requestData, response, rawResponseHeader)
 		if requestData.request.Body != nil {
 			defer requestData.request.Body.Close()
 		}
@@ -234,7 +240,10 @@ func (i *HttpOutput) OutputRAW(requestData *httpRequestData, response *http.Resp
 }
 
 func (i *HttpOutput) OutputBody(body []byte) {
-	content := i.SubString(string(body), 500)
+	content := string(body)
+	if Setting.TruncateBodyLength > 0 {
+		content = i.SubString(content, Setting.TruncateBodyLength)
+	}
 	if strings.TrimSpace(content) == "" {
 		return
 	}
@@ -245,6 +254,98 @@ func (i *HttpOutput) OutputBody(body []byte) {
 		color.PrintResponse(hex.EncodeToString([]byte(content)) + " ")
 		color.Println("<unprintable characters>", color.Default)
 	}
+}
+
+func (i *HttpOutput) OutputRequestLine(requestData *httpRequestData, response *http.Response, rawResponseHeader string) {
+	requestBody := ""
+	if requestData.request != nil && requestData.request.Body != nil {
+		bytes, _ := ioutil.ReadAll(requestData.request.Body)
+		requestBody = string(bytes)
+	}
+	responseBody := ""
+	if response != nil && response.Body != nil {
+		bytes, _ := ioutil.ReadAll(response.Body)
+		responseBody = string(bytes)
+	}
+	variables := map[string]string{
+		"%request.time":                     time.Now().Format("2006-01-02 15:04:05"),
+		"%dest.ip":                          requestData.destAddr,
+		"%dest.port":                        fmt.Sprintf("%d", requestData.destPort),
+		"%source.ip":                        requestData.srcAddr,
+		"%source.port":                      fmt.Sprintf("%d", requestData.srcPort),
+		"%request.method":                   requestData.request.Method,
+		"%request.url":                      requestData.request.RequestURI,
+		"%request.user-agent":               requestData.request.UserAgent(),
+		"%request.host":                     requestData.request.Host,
+		"%request.header":                   requestData.header,
+		"%request.body":                     requestBody,
+		"%request.header.protocol":          requestData.request.Proto,
+		"%request.header.accept":            requestData.request.Header.Get("Accept"),
+		"%request.header.accept-encoding":   requestData.request.Header.Get("Accept-Encoding"),
+		"%request.header.content-length":    fmt.Sprintf("%d", requestData.request.ContentLength),
+		"%request.header.cookie":            requestData.request.Header.Get("Cookie"),
+		"%request.header.referer":           requestData.request.Referer(),
+		"%response.status":                  fmt.Sprintf("%d", response.StatusCode),
+		"%response.header":                  rawResponseHeader,
+		"%response.body":                    responseBody,
+		"%response.header.content-type":     response.Header.Get("Content-Type"),
+		"%response.header.content-encoding": response.Header.Get("Content-Encoding"),
+		"%response.header.content-length":   fmt.Sprintf("%d", response.ContentLength),
+		"%response.header.etag":             response.Header.Get("Etag"),
+		"%response.header.cache-control":    response.Header.Get("Cache-Control"),
+		"%response.header.connection":       response.Header.Get("Connection"),
+		"%response.header.last-modified":    response.Header.Get("Last-Modified"),
+		"%response.header.set-cookie":       response.Header.Get("Set-Cookie"),
+	}
+
+	names := map[string]string{
+		"%request.time":                     "time",
+		"%dest.ip":                          "dest-ip",
+		"%dest.port":                        "dest-port",
+		"%source.ip":                        "src-ip",
+		"%source.port":                      "src-port",
+		"%request.method":                   "method",
+		"%request.url":                      "url",
+		"%request.user-agent":               "useragent",
+		"%request.host":                     "host",
+		"%request.header":                   "request-header",
+		"%request.body":                     "request-body",
+		"%request.header.protocol":          "protocol",
+		"%request.header.accept":            "accept",
+		"%request.header.accept-encoding":   "accept-encoding",
+		"%request.header.content-length":    "content-length",
+		"%request.header.cookie":            "cookie",
+		"%request.header.referer":           "referer",
+		"%response.status":                  "status",
+		"%response.header":                  "response-header",
+		"%response.body":                    "response-body",
+		"%response.header.content-type":     "content-type",
+		"%response.header.content-encoding": "content-encoding",
+		"%response.header.content-length":   "content-length",
+		"%response.header.etag":             "etag",
+		"%response.header.cache-control":    "cache-control",
+		"%response.header.connection":       "connection",
+		"%response.header.last-modified":    "last-modified",
+		"%response.header.set-cookie":       "set-cookie",
+	}
+
+	var keys = []string{}
+	for key, _ := range variables {
+		keys = append(keys, key)
+	}
+	sort.Sort(ByLength(keys))
+
+	line := Setting.Format
+	for _, key := range keys {
+		if v, found := variables[key]; found {
+			line = strings.Replace(line, key, v, -1)
+		}
+	}
+
+	line = strings.Replace(line, `\n`, "\n", -1)
+	line = strings.Replace(line, `\t`, "\t", -1)
+	color.Println(line, color.MethodColor(requestData.request.Method))
+
 }
 
 func (i *HttpOutput) showHeaderDescription() {
