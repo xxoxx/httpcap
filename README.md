@@ -3,7 +3,10 @@ A simple network analyzer that captures http network traffic.
 
 * support windows and linux
 * colorful output
-* supprot show gzip response body
+* support gzip response body
+
+![screenshot](http://ww3.sinaimg.cn/large/7ce4a9f6gw1esw0oayz8dj20rv08zqb9.jpg)
+
 
 #description
 

@@ -166,7 +166,6 @@ func (i *HttpOutput) Output(requestData *httpRequestData, response *http.Respons
 			response.ContentLength,
 			requestData.request.Method,
 			"http://"+requestData.request.Host+requestData.request.RequestURI)
-		i.OutputRequestLine(requestData, response, rawResponseHeader)
 		if requestData.request.Body != nil {
 			defer requestData.request.Body.Close()
 		}
@@ -244,7 +243,7 @@ func (i *HttpOutput) OutputBody(body []byte) {
 	if Setting.TruncateBodyLength > 0 {
 		content = i.SubString(content, Setting.TruncateBodyLength)
 	}
-	if strings.TrimSpace(content) == "" {
+	if strings.TrimSpace(content) == "" || len(content) == 0 {
 		return
 	}
 	if i.IsPrintable(content) {
