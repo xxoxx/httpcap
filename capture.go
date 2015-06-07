@@ -3,25 +3,12 @@ package main
 import (
 	"fmt"
 	"io"
-	"net"
 	"runtime/debug"
-	"strings"
 	"time"
 )
 
 func startCapture() {
-	//_, defaultIp := GetFirstInterface()
-	ipaddr := strings.Join([]string{"0.0.0.0", Setting.Port}, ":")
-	if Setting.InterfaceName != "" {
-		trial := net.ParseIP(Setting.InterfaceName)
-		if trial.To4() == nil {
-			iface, _ := net.InterfaceByName(Setting.InterfaceName)
-			ipaddr = strings.Join([]string{GetIp(iface), Setting.Port}, ":")
-		} else {
-			ipaddr = strings.Join([]string{Setting.InterfaceName, Setting.Port}, ":")
-		}
-	}
-	input := NewRAWInput(ipaddr)
+	input := NewRAWInput(Setting.InterfaceName, Setting.Port)
 	output := NewHttpOutput("")
 
 	go CopyMulty(input, output)

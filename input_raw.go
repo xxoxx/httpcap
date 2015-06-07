@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"log"
 	"net"
-	"strconv"
 	"strings"
 
 	raw "http-sniffer/raw_socket_listener"
@@ -15,12 +14,35 @@ type RAWInput struct {
 	address string
 }
 
-func NewRAWInput(address string) (i *RAWInput) {
+func NewRAWInput(address string, port string) (i *RAWInput) {
+	ipaddr := strings.Join([]string{"0.0.0.0", port}, ":")
+	if address != "" {
+		trial := net.ParseIP(address)
+		if trial.To4() == nil {
+			iface, err := net.InterfaceByName(address)
+			if err != nil {
+				log.Fatal(err)
+			}
+			ipaddr = strings.Join([]string{GetIp(iface), port}, ":")
+		} else {
+			ipaddr = strings.Join([]string{address, port}, ":")
+			address = ipaddr
+		}
+	} else {
+		address = "0.0.0.0"
+	}
+
+	if port == "" {
+		fmt.Printf("listen on %s\n\n", address)
+	} else {
+		fmt.Printf("listen on %s:%s\n\n", address, port)
+	}
+
 	i = new(RAWInput)
 	i.data = make(chan RAWData)
-	i.address = address
+	i.address = ipaddr
 
-	go i.listen(address)
+	go i.listen(ipaddr)
 
 	return
 }
@@ -36,14 +58,6 @@ func (i *RAWInput) listen(address string) {
 	address = strings.Replace(address, "[::]", "127.0.0.1", -1)
 
 	host, port, err := net.SplitHostPort(address)
-
-	listen_port, _ := strconv.Atoi(port)
-	if listen_port <= 0 {
-		fmt.Printf("listen on %s\n\n", host)
-	} else {
-		fmt.Printf("listen on %s\n\n", address)
-	}
-
 	if err != nil {
 		log.Fatal("input-raw: error while parsing address", err)
 	}

@@ -10,11 +10,17 @@ import (
 	"log"
 	"net/http"
 	"net/textproto"
+	"os"
 	"runtime"
+	"sort"
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/shiena/ansicolor"
 )
+
+var w = ansicolor.NewAnsiColorWriter(os.Stdout)
 
 type HttpOutput struct {
 	requests map[string]*httpRequestData
@@ -33,13 +39,13 @@ type httpRequestData struct {
 func NewHttpOutput(options string) (di *HttpOutput) {
 	di = new(HttpOutput)
 	di.requests = make(map[string]*httpRequestData)
+	go di.requestMonitor()
 
 	return
 }
 
 var request *http.Request
 var err error
-var count uint
 var locker *sync.Mutex = &sync.Mutex{}
 
 func (i *HttpOutput) Write(data []byte, srcPort uint16, destPort uint16, srcAddr string, destAddr string) (int, error) {
@@ -77,10 +83,17 @@ func (i *HttpOutput) Write(data []byte, srcPort uint16, destPort uint16, srcAddr
 			addTime:  time.Now(),
 		}
 		if runtime.GOOS == "windows" {
+			// windows can't get destination address, direct output
 			i.Output(&requestData, nil, "")
 		} else {
-			key := fmt.Sprintf("%s-%s-%d-%d", srcAddr, destAddr, srcPort, destPort)
+			fmt.Println(i.requests)
+			key := i.key(srcAddr, destAddr, srcPort, destPort)
 			locker.Lock()
+			checkRequestData, found := i.requests[key]
+			if found {
+				// conflict with prev request
+				i.Output(checkRequestData, nil, "")
+			}
 			i.requests[key] = &requestData
 			locker.Unlock()
 		}
@@ -116,7 +129,7 @@ func (i *HttpOutput) Write(data []byte, srcPort uint16, destPort uint16, srcAddr
 			response.Body = nil
 		}
 
-		key := fmt.Sprintf("%s-%s-%d-%d", srcAddr, destAddr, srcPort, destPort)
+		key := i.key(srcAddr, destAddr, srcPort, destPort)
 		locker.Lock()
 		httpRequestData, _ := i.requests[key]
 		delete(i.requests, key)
@@ -129,6 +142,7 @@ func (i *HttpOutput) Write(data []byte, srcPort uint16, destPort uint16, srcAddr
 }
 
 func (i *HttpOutput) Output(requestData *httpRequestData, response *http.Response, rawResponseHeader string) {
+	// filte request
 	if requestData != nil {
 		url := "http://" + requestData.request.Host + requestData.request.RequestURI
 		if Setting.Filter != "" && !strings.Contains(url, Setting.Filter) {
@@ -136,15 +150,21 @@ func (i *HttpOutput) Output(requestData *httpRequestData, response *http.Respons
 		}
 	}
 
+	// raw output mode
 	if Setting.Raw {
 		i.OutputRAW(requestData, response, rawResponseHeader)
 		return
 	}
 
 	if requestData != nil && response != nil {
-		count++
 
-		fmt.Printf("%-5d %-5s %-5d %-5s %s\n", count, response.StatusCode, response.ContentLength, requestData.request.Method, "http://"+requestData.request.Host+requestData.request.RequestURI)
+		fmt.Fprintln(w, Color(fmt.Sprintf("%-24s %-5d %-5d %-5s %s",
+			time.Now().Format("2006-01-02 15:04:05"),
+			response.StatusCode,
+			response.ContentLength,
+			requestData.request.Method,
+			"http://"+requestData.request.Host+requestData.request.RequestURI),
+			ColorRequestMethod(requestData.request.Method)))
 		if requestData.request.Body != nil {
 			defer requestData.request.Body.Close()
 		}
@@ -152,12 +172,16 @@ func (i *HttpOutput) Output(requestData *httpRequestData, response *http.Respons
 			defer response.Body.Close()
 
 			body, _ := ioutil.ReadAll(response.Body)
-			fmt.Println(i.SubString(string(body), 1000))
+			i.OutputBody(body)
 		}
 	} else if requestData != nil {
-		count++
-
-		fmt.Printf("%-5d %-5s %-5s %-5s %s\n", count, "-", "-", requestData.request.Method, "http://"+requestData.request.Host+requestData.request.RequestURI)
+		fmt.Fprintln(w, Color(fmt.Sprintf("%-24s %-5s %-5s %-5s %s",
+			time.Now().Format("2006-01-02 15:04:05"),
+			"-",
+			"-",
+			requestData.request.Method,
+			"http://"+requestData.request.Host+requestData.request.RequestURI),
+			ColorRequestMethod(requestData.request.Method)))
 		if requestData.request.Body != nil {
 			defer requestData.request.Body.Close()
 		}
@@ -166,53 +190,57 @@ func (i *HttpOutput) Output(requestData *httpRequestData, response *http.Respons
 			defer response.Body.Close()
 
 			body, _ := ioutil.ReadAll(response.Body)
-			fmt.Println(i.SubString(string(body), 1000))
+			i.OutputBody(body)
 		}
 	}
 }
 
 func (i *HttpOutput) OutputRAW(requestData *httpRequestData, response *http.Response, rawResponseHeader string) {
 	if requestData != nil && response != nil {
-		fmt.Println(ColorfulRequest(requestData.header))
+		fmt.Fprintln(w, ColorfulRequest(requestData.header))
 		if requestData.request.Body != nil {
 			defer requestData.request.Body.Close()
 
 			body, _ := ioutil.ReadAll(requestData.request.Body)
-			fmt.Println(i.SubString(string(body), 1000))
+			i.OutputBody(body)
 		}
 
-		fmt.Println(ColorfulRequest(rawResponseHeader))
+		fmt.Fprintln(w, ColorfulRequest(rawResponseHeader))
 		if response.Body != nil {
 			defer response.Body.Close()
 
 			body, _ := ioutil.ReadAll(response.Body)
-			fmt.Println(ColorfulResponse(i.SubString(string(body), 1000)))
+			i.OutputBody(body)
 		}
 	} else if requestData != nil {
-		fmt.Println(ColorfulRequest(requestData.header))
+		fmt.Fprintln(w, ColorfulRequest(requestData.header))
 		if requestData.request.Body != nil {
 			defer requestData.request.Body.Close()
 
 			body, _ := ioutil.ReadAll(requestData.request.Body)
-			fmt.Println(ColorfulResponse(i.SubString(string(body), 1000)))
+			i.OutputBody(body)
 		}
 
 	} else {
-		fmt.Println(ColorfulRequest(rawResponseHeader))
+		fmt.Fprintln(w, ColorfulRequest(rawResponseHeader))
 		if response.Body != nil {
 			defer response.Body.Close()
 
 			body, _ := ioutil.ReadAll(response.Body)
-			fmt.Println(ColorfulResponse(i.SubString(string(body), 1000)))
+			i.OutputBody(body)
 		}
 	}
 
 	fmt.Println("")
 }
 
+func (i *HttpOutput) OutputBody(body []byte) {
+	fmt.Fprintln(w, ColorfulResponse(i.SubString(string(body), 500)))
+}
+
 func (i *HttpOutput) SubString(text string, maxLen int) string {
 	if len(text) > maxLen {
-		return text[:maxLen] + "..."
+		return text[:maxLen] + " ..."
 	} else {
 		return text
 	}
@@ -284,7 +312,7 @@ func (i *HttpOutput) allowShowResponseBody(contentType string) bool {
 
 func (i *HttpOutput) requestMonitor() {
 	for {
-		<-time.Tick(2 * time.Second)
+		<-time.Tick(1 * time.Second)
 
 		// output timeout request
 		timeout := 5 * time.Second
@@ -297,6 +325,12 @@ func (i *HttpOutput) requestMonitor() {
 		}
 		locker.Unlock()
 	}
+}
+
+func (i *HttpOutput) key(srcAddr string, destAddr string, srcPort uint16, destPort uint16) string {
+	strs := []string{srcAddr, destAddr, fmt.Sprintf("%d", srcPort), fmt.Sprintf("%d", destPort)}
+	sort.Strings(strs)
+	return strings.Join(strs, "_")
 }
 
 func (i *HttpOutput) String() string {

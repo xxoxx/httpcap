@@ -21,7 +21,9 @@ type Flags struct {
 	Filter        string
 }
 
-var Setting Flags
+var (
+	Setting Flags
+)
 
 func main() {
 	// Don't exit on panic

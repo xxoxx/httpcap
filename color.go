@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
+
+	"runtime"
 )
 
 const (
@@ -26,7 +28,51 @@ func Color(str string, color uint8) string {
 }
 
 func ColorStart(color uint8) string {
-	return fmt.Sprintf("\033[%dm", color)
+	if runtime.GOOS == "windows" {
+		return fmt.Sprintf("\033[%dm", color-60)
+	} else {
+		return fmt.Sprintf("\033[%dm", color)
+	}
+}
+
+func ColorRequestMethod(method string) uint8 {
+	switch method {
+	case "GET":
+		return Yellow
+	case "POST":
+		return Blue
+	case "DELETE":
+		return Red
+	case "PUT":
+		return Magenta
+	default:
+		return Gray
+	}
+}
+
+func ColorfulRequestLine(str string) string {
+	strs := strings.Split(str, " ")
+
+	count := 0
+	color := Gray
+	for i, str := range strs {
+		if strings.TrimSpace(str) != "" {
+			switch count {
+			case 1:
+				strs[i] = Color(strs[i], Cyan)
+			case 3:
+				color = ColorRequestMethod(strs[i])
+				strs[i] = Color(strs[i], color)
+			case 4:
+				strs[i] = Color(strs[i], color)
+			default:
+			}
+
+			count++
+		}
+	}
+
+	return strings.Join(strs, " ")
 }
 
 func ColorfulRequest(str string) string {
@@ -151,7 +197,7 @@ func ColorfulJson(str string) string {
 }
 
 func ColorfulHTML(str string) string {
-	return Color(str, Green)
+	return Color(str, White)
 }
 
 func isJSON(s string) bool {

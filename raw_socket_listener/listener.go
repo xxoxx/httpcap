@@ -2,11 +2,8 @@ package raw_socket
 
 import (
 	"encoding/binary"
-	_ "fmt"
-	"log"
 	"net"
 	"os"
-	"runtime"
 	"strconv"
 )
 
@@ -66,63 +63,6 @@ func (t *Listener) listen() {
 	}
 }
 
-func (t *Listener) readRAWSocket() {
-	protocol := "ip4:tcp"
-	if runtime.GOOS == "windows" {
-		protocol = "ip4"
-	}
-
-	conn, e := net.ListenPacket(protocol, t.addr)
-	if e != nil {
-		log.Fatal(e)
-	}
-	defer conn.Close()
-
-	buf := make([]byte, 4096*2)
-	oob := make([]byte, 4096*2)
-	hostIp := getHostIP()
-
-	for {
-
-		var n int
-		var addr *net.IPAddr
-		var err error
-		var src_ip string
-		var dest_ip string
-
-		// Note: windows not support TCP raw sockage
-		// https://msdn.microsoft.com/en-us/library/windows/desktop/ms740548%28v=vs.85%29.aspx
-		if runtime.GOOS == "windows" {
-			// Note: ReadFromIP receive messages without IP header
-			n, addr, err = conn.(*net.IPConn).ReadFromIP(buf)
-			// TODO: judge windows incoming/outgoing package not accurate, maybe replace with winpcap.
-			if addr.String() == hostIp {
-				// outgoing package
-				src_ip = addr.String()
-				dest_ip = "0.0.0.0" // can't get dest ip
-			} else {
-				// incoming package
-				src_ip = addr.String()
-				dest_ip = hostIp
-			}
-		} else {
-			n, _, _, addr, err = conn.(*net.IPConn).ReadMsgIP(buf, oob)
-			src_ip = inet_ntoa(binary.BigEndian.Uint32(buf[12:16])).String()
-			dest_ip = inet_ntoa(binary.BigEndian.Uint32(buf[16:20])).String()
-			n = stripIPv4Header(n, buf)
-		}
-
-		if err != nil {
-			log.Println("Error:", err)
-			continue
-		}
-
-		if n > 0 {
-			t.parsePacket(addr, src_ip, dest_ip, buf[:n])
-		}
-	}
-}
-
 func inet_ntoa(ipnr uint32) net.IP {
 	var bytes [4]byte
 	bytes[0] = byte(ipnr & 0xFF)
@@ -146,6 +86,29 @@ func stripIPv4Header(n int, b []byte) int {
 	}
 	copy(b, b[l:])
 	return n - l
+}
+
+func zoneToString(zone int) string {
+	if zone == 0 {
+		return ""
+	}
+	if ifi, err := net.InterfaceByIndex(zone); err == nil {
+		return ifi.Name
+	}
+
+	return uitoa(uint(zone))
+}
+
+func uitoa(val uint) string {
+	var buf [32]byte // big enough for int64
+	i := len(buf) - 1
+	for val >= 10 {
+		buf[i] = byte(val%10 + '0')
+		i--
+		val /= 10
+	}
+	buf[i] = byte(val + '0')
+	return string(buf[i:])
 }
 
 func getHostIP() string {
