@@ -36,7 +36,7 @@ func main() {
 	}()
 
 	app := cli.NewApp()
-	app.Name = "httpsf"
+	app.Name = "httpcap"
 	app.Usage = "A simple network analyzer that captures http network traffic."
 	app.Version = "0.1.0"
 	app.Flags = []cli.Flag{
