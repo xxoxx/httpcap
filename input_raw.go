@@ -7,7 +7,7 @@ import (
 	"runtime"
 	"strings"
 
-	raw "http-sniffer/raw_socket_listener"
+	raw "github.com/cxfksword/httpcap/raw_socket_listener"
 )
 
 type RAWInput struct {

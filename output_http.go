@@ -17,7 +17,7 @@ import (
 	"time"
 	"unicode"
 
-	"http-sniffer/color"
+	"github.com/cxfksword/httpcap/color"
 )
 
 type HttpOutput struct {
@@ -298,36 +298,36 @@ func (i *HttpOutput) OutputRequestLine(requestData *httpRequestData, response *h
 		"%response.header.set-cookie":       response.Header.Get("Set-Cookie"),
 	}
 
-	names := map[string]string{
-		"%request.time":                     "time",
-		"%dest.ip":                          "dest-ip",
-		"%dest.port":                        "dest-port",
-		"%source.ip":                        "src-ip",
-		"%source.port":                      "src-port",
-		"%request.method":                   "method",
-		"%request.url":                      "url",
-		"%request.user-agent":               "useragent",
-		"%request.host":                     "host",
-		"%request.header":                   "request-header",
-		"%request.body":                     "request-body",
-		"%request.header.protocol":          "protocol",
-		"%request.header.accept":            "accept",
-		"%request.header.accept-encoding":   "accept-encoding",
-		"%request.header.content-length":    "content-length",
-		"%request.header.cookie":            "cookie",
-		"%request.header.referer":           "referer",
-		"%response.status":                  "status",
-		"%response.header":                  "response-header",
-		"%response.body":                    "response-body",
-		"%response.header.content-type":     "content-type",
-		"%response.header.content-encoding": "content-encoding",
-		"%response.header.content-length":   "content-length",
-		"%response.header.etag":             "etag",
-		"%response.header.cache-control":    "cache-control",
-		"%response.header.connection":       "connection",
-		"%response.header.last-modified":    "last-modified",
-		"%response.header.set-cookie":       "set-cookie",
-	}
+	// names := map[string]string{
+	// 	"%request.time":                     "time",
+	// 	"%dest.ip":                          "dest-ip",
+	// 	"%dest.port":                        "dest-port",
+	// 	"%source.ip":                        "src-ip",
+	// 	"%source.port":                      "src-port",
+	// 	"%request.method":                   "method",
+	// 	"%request.url":                      "url",
+	// 	"%request.user-agent":               "useragent",
+	// 	"%request.host":                     "host",
+	// 	"%request.header":                   "request-header",
+	// 	"%request.body":                     "request-body",
+	// 	"%request.header.protocol":          "protocol",
+	// 	"%request.header.accept":            "accept",
+	// 	"%request.header.accept-encoding":   "accept-encoding",
+	// 	"%request.header.content-length":    "content-length",
+	// 	"%request.header.cookie":            "cookie",
+	// 	"%request.header.referer":           "referer",
+	// 	"%response.status":                  "status",
+	// 	"%response.header":                  "response-header",
+	// 	"%response.body":                    "response-body",
+	// 	"%response.header.content-type":     "content-type",
+	// 	"%response.header.content-encoding": "content-encoding",
+	// 	"%response.header.content-length":   "content-length",
+	// 	"%response.header.etag":             "etag",
+	// 	"%response.header.cache-control":    "cache-control",
+	// 	"%response.header.connection":       "connection",
+	// 	"%response.header.last-modified":    "last-modified",
+	// 	"%response.header.set-cookie":       "set-cookie",
+	// }
 
 	var keys = []string{}
 	for key, _ := range variables {
