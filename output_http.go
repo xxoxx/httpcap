@@ -42,7 +42,6 @@ func NewHttpOutput(options string) (di *HttpOutput) {
 	return
 }
 
-var request *http.Request
 var err error
 var locker *sync.Mutex = &sync.Mutex{}
 var hasShowHeaderDesc = false
@@ -59,7 +58,7 @@ func (i *HttpOutput) Write(data []byte, srcPort uint16, destPort uint16, srcAddr
 		reader := bufio.NewReader(buf)
 
 		// read header
-		request, err = http.ReadRequest(reader)
+		request, err := http.ReadRequest(reader)
 		if err != nil {
 			log.Printf("Can't parse request data. %s\n", err.Error())
 			return 0, nil
@@ -67,10 +66,12 @@ func (i *HttpOutput) Write(data []byte, srcPort uint16, destPort uint16, srcAddr
 
 		// read body
 		if request.Method == "POST" || request.Method == "PUT" {
-			body, _ := ioutil.ReadAll(reader)
-			bodyBuf := bytes.NewBuffer(body)
-			request.Body = ioutil.NopCloser(bodyBuf)
-			request.ContentLength = int64(bodyBuf.Len())
+			body, err := ioutil.ReadAll(request.Body)
+			if err == nil {
+				bodyBuf := bytes.NewBuffer(body)
+				request.Body = ioutil.NopCloser(bodyBuf)
+				request.ContentLength = int64(bodyBuf.Len())
+			}
 		}
 
 		requestData := httpRequestData{
@@ -96,6 +97,18 @@ func (i *HttpOutput) Write(data []byte, srcPort uint16, destPort uint16, srcAddr
 	}
 
 	if i.isResponse(data) {
+		// check has correspond request
+		var request *http.Request
+		key := i.key(srcAddr, destAddr, srcPort, destPort)
+		locker.Lock()
+		httpRequestData, found := i.requests[key]
+		if found {
+			request = httpRequestData.request
+			delete(i.requests, key)
+		}
+		locker.Unlock()
+
+		// parse response
 		buf := bytes.NewBuffer(data)
 		reader := bufio.NewReader(buf)
 		response, err := http.ReadResponse(reader, request)
@@ -103,6 +116,7 @@ func (i *HttpOutput) Write(data []byte, srcPort uint16, destPort uint16, srcAddr
 			log.Printf("Can't parse response data. %s\n", err.Error())
 			return 0, nil
 		}
+		defer response.Body.Close()
 
 		if i.allowShowResponseBody(response.Header.Get("Content-Type")) {
 			switch response.Header.Get("Content-Encoding") {
@@ -116,20 +130,16 @@ func (i *HttpOutput) Write(data []byte, srcPort uint16, destPort uint16, srcAddr
 				response.Body = ioutil.NopCloser(bodyBuf)
 				response.ContentLength = int64(bodyBuf.Len())
 			default:
-				body, _ := ioutil.ReadAll(reader)
-				bodyBuf := bytes.NewBuffer(body)
-				response.Body = ioutil.NopCloser(bodyBuf)
-				response.ContentLength = int64(bodyBuf.Len())
+				body, err := ioutil.ReadAll(response.Body)
+				if err == nil {
+					bodyBuf := bytes.NewBuffer(body)
+					response.Body = ioutil.NopCloser(bodyBuf)
+					response.ContentLength = int64(bodyBuf.Len())
+				}
 			}
 		} else {
 			response.Body = nil
 		}
-
-		key := i.key(srcAddr, destAddr, srcPort, destPort)
-		locker.Lock()
-		httpRequestData, _ := i.requests[key]
-		delete(i.requests, key)
-		locker.Unlock()
 
 		i.Output(httpRequestData, response, i.ReadRawHeader(data))
 	}

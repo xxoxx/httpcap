@@ -30,13 +30,13 @@ func MethodColor(method string) uint8 {
 	case "GET":
 		return Yellow
 	case "POST":
-		return Blue
+		return Green
 	case "DELETE":
 		return Red
 	case "PUT":
-		return Magenta
-	default:
 		return Cyan
+	default:
+		return Magenta
 	}
 }
 
