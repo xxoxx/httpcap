@@ -169,11 +169,11 @@ func (i *HttpOutput) Output(requestData *httpRequestData, response *http.Respons
 
 	if requestData != nil && response != nil {
 		i.showHeaderDescription()
-		color.Printf("%-24s %-5d %-5d %-5s %s\n",
+		color.Printf("%-23s %-5d %-7s %-5s %s\n",
 			color.MethodColor(requestData.request.Method),
 			time.Now().Format("2006-01-02 15:04:05"),
 			response.StatusCode,
-			response.ContentLength,
+			i.formatContentLength(response.ContentLength),
 			requestData.request.Method,
 			"http://"+requestData.request.Host+requestData.request.RequestURI)
 		if requestData.request.Body != nil {
@@ -187,7 +187,7 @@ func (i *HttpOutput) Output(requestData *httpRequestData, response *http.Respons
 		}
 	} else if requestData != nil {
 		i.showHeaderDescription()
-		color.Printf("%-24s %-5s %-5s %-5s %s\n",
+		color.Printf("%-23s %-5s %-7s %-5s %s\n",
 			color.MethodColor(requestData.request.Method),
 			time.Now().Format("2006-01-02 15:04:05"),
 			"-",
@@ -385,6 +385,16 @@ func (i *HttpOutput) SubString(text string, maxLen int) string {
 		return text[:maxLen] + " ..."
 	} else {
 		return text
+	}
+}
+
+func (i *HttpOutput) formatContentLength(length int64) string {
+	if length >= 1024*1024 {
+		return fmt.Sprintf("%dMB", length/(1024*1024))
+	} else if length >= 1024 {
+		return fmt.Sprintf("%dKB", length/1024)
+	} else {
+		return fmt.Sprintf("%dB", length)
 	}
 }
 
