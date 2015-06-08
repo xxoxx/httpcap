@@ -12,7 +12,7 @@ A simple network analyzer that captures http network traffic.
 
 ```
 NAME:
-   httpcap - A simple network analyzer that captures http network traffic.
+   httpcap - A simple network analyzer that capture http network traffic.
 
 USAGE:
    httpcap [global options] command [command options] [arguments...]
@@ -30,19 +30,20 @@ GLOBAL OPTIONS:
    --raw, -r            show raw stream. it is a shortcut for -l %request%response
    --format, -f         output format. You can specify the output string format containing reserved keyword that will be replaced with the proper value
    --keyword, -k        filte output with the keyword in request url
-   --length, -l "500"   the length to truncate response body (default 500, 0 - no limit)
+   --length, -l "500"   the length to truncate response body (0 - no limit)
    --verbose, -V        output debug message
    --help, -h           show help
    --version, -v        print the version
+
 ```
 
 
 #Example
 
 ```
-httpcap run -i eth0 -p 80
-httpcap run -p 80 -k amazon
-httpcap run -f  "%request.time\t%source.ip:%source.port => %dest.ip:%dest.port\thttp://%request.host%request.url\t%response.status"
+httpcap -i eth0 -p 80
+httpcap -p 80 -k amazon
+httpcap -f "%request.time\t%source.ip:%source.port => %dest.ip:%dest.port\thttp://%request.host%request.url\t%response.status"
 ```
 
 

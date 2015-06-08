@@ -81,12 +81,6 @@ func main() {
 			Action: func(c *cli.Context) {
 				ShowAllInterfaces()
 			},
-		}, {
-			Name:  "run",
-			Usage: "start to capture http network traffic",
-			Action: func(c *cli.Context) {
-				startCapture()
-			},
 		}}
 	app.Action = func(c *cli.Context) {
 		Setting.Verbose = c.Bool("verbose")
@@ -102,7 +96,12 @@ func main() {
 			return
 		}
 
-		cli.ShowAppHelp(c)
+		if c.Bool("help") {
+			cli.ShowAppHelp(c)
+			return
+		}
+
+		startCapture()
 	}
 
 	app.Run(os.Args)
