@@ -37,7 +37,7 @@ func main() {
 
 	app := cli.NewApp()
 	app.Name = "httpcap"
-	app.Usage = "A simple network analyzer that captures http network traffic."
+	app.Usage = "A simple network analyzer that capture http network traffic."
 	app.Version = "0.1.0"
 	app.Flags = []cli.Flag{
 		cli.StringFlag{
@@ -67,7 +67,7 @@ func main() {
 		cli.IntFlag{
 			Name:  "length, l",
 			Value: 500,
-			Usage: "the length to truncate response body (default 500, 0 - no limit)",
+			Usage: "the length to truncate response body (0 - no limit)",
 		},
 		cli.BoolFlag{
 			Name:  "verbose, V",
@@ -81,6 +81,12 @@ func main() {
 			Action: func(c *cli.Context) {
 				ShowAllInterfaces()
 			},
+		}, {
+			Name:  "run",
+			Usage: "start to capture http network traffic",
+			Action: func(c *cli.Context) {
+				startCapture()
+			},
 		}}
 	app.Action = func(c *cli.Context) {
 		Setting.Verbose = c.Bool("verbose")
@@ -90,7 +96,13 @@ func main() {
 		Setting.Filter = c.String("keyword")
 		Setting.TruncateBodyLength = c.Int("length")
 		Setting.Raw = c.Bool("raw")
-		startCapture()
+
+		if c.Bool("version") {
+			cli.ShowVersion(c)
+			return
+		}
+
+		cli.ShowAppHelp(c)
 	}
 
 	app.Run(os.Args)

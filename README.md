@@ -8,7 +8,7 @@ A simple network analyzer that captures http network traffic.
 ![screenshot](http://ww3.sinaimg.cn/large/7ce4a9f6gw1esw0oayz8dj20rv08zqb9.jpg)
 
 
-#description
+#Usage
 
 ```
 NAME:
@@ -37,17 +37,14 @@ GLOBAL OPTIONS:
 ```
 
 
-
-#example
+#Example
 
 ```
-httpcap -i eth0 -p 80
-httpcap -p 80 -k amazon
-httpcap -f  "%request.time\t%source.ip:%source.port => %dest.ip:%dest.port\thttp://%request.host%request.url\t%response.status"
+httpcap run -i eth0 -p 80
+httpcap run -p 80 -k amazon
+httpcap run -f  "%request.time\t%source.ip:%source.port => %dest.ip:%dest.port\thttp://%request.host%request.url\t%response.status"
 ```
 
 
-#options
 
-
-#format variables
+#Format Variables
