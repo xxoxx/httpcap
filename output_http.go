@@ -261,7 +261,7 @@ func (i *HttpOutput) OutputBody(body []byte) {
 	} else {
 		// can't printable char, encode to hex
 		color.PrintResponse(hex.EncodeToString([]byte(content)) + " ")
-		color.Println("<unprintable characters>", color.Default)
+		color.Println("<unprintable characters>", color.Gray)
 	}
 }
 

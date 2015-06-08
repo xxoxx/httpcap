@@ -6,12 +6,22 @@ import (
 	"os"
 	"strings"
 
-	"github.com/shiena/ansicolor"
+	"github.com/cxfksword/ansicolor"
 )
 
 var w = ansicolor.NewAnsiColorWriter(os.Stdout)
 
 const (
+	Gray = uint8(iota + 90)
+	Red
+	Green
+	Yellow
+	Blue
+	Magenta
+	Cyan
+	White
+	Default
+
 	EndColor         = "\033[0m"
 	printV           = "A"
 	contentJsonRegex = `application/json`
@@ -30,11 +40,11 @@ func MethodColor(method string) uint8 {
 	case "GET":
 		return Yellow
 	case "POST":
-		return Green
+		return Cyan
 	case "DELETE":
 		return Red
 	case "PUT":
-		return Cyan
+		return Blue
 	default:
 		return Magenta
 	}
