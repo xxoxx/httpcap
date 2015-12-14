@@ -249,6 +249,10 @@ func (i *HttpOutput) OutputRAW(requestData *httpRequestData, response *http.Resp
 }
 
 func (i *HttpOutput) OutputBody(body []byte) {
+	if Setting.TruncateBodyLength == 0 {
+		return
+	}
+
 	content := string(body)
 	if Setting.TruncateBodyLength > 0 {
 		content = i.SubString(content, Setting.TruncateBodyLength)

@@ -6,6 +6,7 @@ import (
 	"net"
 	"os"
 	"runtime/debug"
+	"strconv"
 	"strings"
 
 	"github.com/codegangsta/cli"
@@ -65,12 +66,12 @@ func main() {
 			Usage: "filte output with the keyword in request url",
 		},
 		cli.IntFlag{
-			Name:  "length, l",
-			Value: 500,
-			Usage: "the length to truncate response body (0 - no limit)",
+			Name:  "body, b",
+			Value: "0",
+			Usage: "the length to truncate response body (0 - not show body, -1 - show all body)",
 		},
 		cli.BoolFlag{
-			Name:  "verbose, V",
+			Name:  "verbose, vv",
 			Usage: "output debug message",
 		},
 	}
@@ -88,7 +89,7 @@ func main() {
 		Setting.Port = c.String("port")
 		Setting.Format = c.String("format")
 		Setting.Filter = c.String("keyword")
-		Setting.TruncateBodyLength = c.Int("length")
+		Setting.TruncateBodyLength = c.Int("body")
 		Setting.Raw = c.Bool("raw")
 
 		if c.Bool("version") {

@@ -6,7 +6,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/cxfksword/ansicolor"
+	"github.com/shiena/ansicolor"
 )
 
 var w = ansicolor.NewAnsiColorWriter(os.Stdout)
