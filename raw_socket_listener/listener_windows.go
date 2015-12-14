@@ -61,6 +61,7 @@ func (t *Listener) readRAWSocket() {
 			log.Println("Error:WSARecvFrom", err)
 			continue
 		}
+
 		if qty <= 0 {
 			continue
 		}
@@ -82,6 +83,9 @@ func (t *Listener) readRAWSocket() {
 			dest_ip = packet.NetworkLayer().NetworkFlow().Dst().String()
 			remoteAddr := &net.IPAddr{IP: net.ParseIP(src_ip)}
 			n := len(tcp.Contents) + len(tcp.Payload)
+
+			// log.Println(src_ip + " -> " + dest_ip)
+
 			if len(tcp.Contents) > 0 {
 				copy(buf, tcp.Contents)
 			}

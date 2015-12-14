@@ -6,7 +6,6 @@ import (
 	"net"
 	"os"
 	"runtime/debug"
-	"strconv"
 	"strings"
 
 	"github.com/codegangsta/cli"
@@ -67,7 +66,7 @@ func main() {
 		},
 		cli.IntFlag{
 			Name:  "body, b",
-			Value: "0",
+			Value: 0,
 			Usage: "the length to truncate response body (0 - not show body, -1 - show all body)",
 		},
 		cli.BoolFlag{

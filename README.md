@@ -46,6 +46,27 @@ httpcap -p 80 -k amazon
 httpcap -f "%request.time\t%source.ip:%source.port => %dest.ip:%dest.port\thttp://%request.host%request.url\t%response.status"
 ```
 
+#Compile on windows
+
+1. download [Msys2](https://msys2.github.io/)
+
+2. Download [WinPcap developer pack](https://www.winpcap.org/devel.htm) and extract to ```C:\WpdPack```, make sure the directory is same with ```gopacket/pcap/pcap.go```:
+
+```
+#cgo windows CFLAGS: -I C:/WpdPack/Include
+```
+3. execute command
+
+```
+go build main.go capture.go input_raw.go output_http.go reader.go sort.go writer.go
+```
+
+>> [Packet Capture, Injection, and Analysis with Gopacket](http://www.devdungeon.com/content/packet-capture-injection-and-analysis-gopacket)
+
+#Run on windows
+
+when run on windows vista or windows 7+, must turn off ```windows firewall``` and ```run with Administrator```.
+
 
 
 #Format Variables

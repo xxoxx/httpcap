@@ -36,6 +36,11 @@ func NewRAWInput(host string, port string) (i *RAWInput) {
 		ifname = "0.0.0.0"
 	}
 
+	mode := ""
+	if Setting.Verbose {
+		mode = " [DEBUG MODE]"
+	}
+
 	i = new(RAWInput)
 	i.data = make(chan RAWData)
 	i.address = host
@@ -43,16 +48,16 @@ func NewRAWInput(host string, port string) (i *RAWInput) {
 	if runtime.GOOS == "windows" {
 		go i.listen(host, port)
 		if port == "" {
-			fmt.Printf("listen on %s\n\n", host)
+			fmt.Printf("listen on %s%s\n\n", host, mode)
 		} else {
-			fmt.Printf("listen on %s:%s\n\n", host, port)
+			fmt.Printf("listen on %s:%s%s\n\n", host, port, mode)
 		}
 	} else {
 		go i.listen(ifname, port)
 		if port == "" {
-			fmt.Printf("listen on %s\n\n", ifname)
+			fmt.Printf("listen on %s%s\n\n", ifname, mode)
 		} else {
-			fmt.Printf("listen on %s:%s\n\n", ifname, port)
+			fmt.Printf("listen on %s:%s%s\n\n", ifname, port, mode)
 		}
 	}
 
