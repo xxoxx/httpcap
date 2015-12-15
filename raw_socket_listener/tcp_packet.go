@@ -39,6 +39,9 @@ type TCPPacket struct {
 	Addr   net.Addr
 	SrcIP  string
 	DestIP string
+
+        Psh    bool
+        Act    bool
 }
 
 func ParseTCPPacket(addr net.Addr, src_ip string, dest_ip string, b []byte) (p *TCPPacket) {
@@ -47,6 +50,8 @@ func ParseTCPPacket(addr net.Addr, src_ip string, dest_ip string, b []byte) (p *
 	p.Addr = addr
 	p.SrcIP = src_ip
 	p.DestIP = dest_ip
+        p.Psh = p.Flags&TCP_PSH != 0
+        p.Act = p.Flags&TCP_ACK != 0
 
 	return p
 }

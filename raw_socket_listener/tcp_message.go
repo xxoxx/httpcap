@@ -1,7 +1,7 @@
 package raw_socket
 
 import (
-	_ "log"
+_	"log"
 	"sort"
 	"time"
 )

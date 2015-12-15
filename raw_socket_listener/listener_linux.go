@@ -49,7 +49,6 @@ func (t *Listener) readRAWSocket() {
 		packet := gopacket.NewPacket(buf[:n], layers.LayerTypeEthernet, gopacket.Default)
 		if tcpLayer := packet.Layer(layers.LayerTypeTCP); tcpLayer != nil {
 			tcp, _ := tcpLayer.(*layers.TCP)
-
 			src_ip = packet.NetworkLayer().NetworkFlow().Src().String()
 			dest_ip = packet.NetworkLayer().NetworkFlow().Dst().String()
 			remoteAddr := &net.IPAddr{IP: net.ParseIP(src_ip)}
