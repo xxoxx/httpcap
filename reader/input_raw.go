@@ -65,11 +65,14 @@ func NewRAWInput(host string, port string) (i *RAWInput) {
 	return
 }
 
-func (i *RAWInput) Read(data []byte) (int, uint16, uint16, string, string, error) {
+func (i *RAWInput) Read(data []byte) (int, RAWData, error) {
 	raw := <-i.data
-	copy(data, raw.Data)
 
-	return len(raw.Data), raw.SrcPort, raw.DestPort, raw.SrcAddr, raw.DestAddr, nil
+	length := len(raw.Data)
+	copy(data, raw.Data)
+	raw.Data = nil
+
+	return length, raw, nil
 }
 
 func (i *RAWInput) listen(host string, port string) {
@@ -88,6 +91,7 @@ func (i *RAWInput) listen(host string, port string) {
 			LocalAddr: i.address,
 			SrcAddr:   m.SourceIP(),
 			DestAddr:  m.DestinationIP(),
+			Seq:       m.SequenceNumber(),
 		}
 	}
 }

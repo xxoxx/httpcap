@@ -114,6 +114,14 @@ func (t *TCPMessage) DestinationIP() string {
 	}
 }
 
+func (t *TCPMessage) SequenceNumber() uint32 {
+	if len(t.packets) > 0 {
+		return t.packets[0].Seq
+	} else {
+		return 0
+	}
+}
+
 // AddPacket to the message and ensure packet uniqueness
 // TCP allows that packet can be re-send multiple times
 func (t *TCPMessage) AddPacket(packet *TCPPacket) {

@@ -3,9 +3,9 @@ package main
 import (
 	"fmt"
 	"io"
+	"log"
 	"runtime/debug"
 	"time"
-        "log"
 
 	"github.com/cxfksword/httpcap/common"
 	"github.com/cxfksword/httpcap/config"
@@ -36,7 +36,7 @@ func CopyMulty(src reader.InputReader) (err error) {
 			} else {
 				fmt.Printf("PANIC: pkg: %s \n", debug.Stack())
 			}
-                        log.Fatal(r.(error))
+			log.Fatal(r.(error))
 		}
 	}()
 
@@ -47,30 +47,26 @@ func CopyMulty(src reader.InputReader) (err error) {
 	buf := make([]byte, 5*1024*1024)
 
 	for {
-		nr, srcPort, destPort, srcAddr, destAddr, er := src.Read(buf)
+		nr, raw, er := src.Read(buf)
 		if nr > 0 && len(buf) > nr {
 			common.Debug("Sending", src, ": ", string(buf[0:nr]))
 
-			servicePort := destPort
-			isOutputPacket := false
-			if ip := common.GetHostIp(); ip == srcAddr {
-				isOutputPacket = true
-				servicePort = srcPort
+			servicePort := raw.DestPort
+			if ip := common.GetHostIp(); ip == raw.SrcAddr {
+				servicePort = raw.SrcPort
 			}
-                        
-                        
+
 			if srv, found := services[int(servicePort)]; found {
 				switch srv.Type {
 				case common.Service_Type_Memcache:
 					if config.Setting.Service == "" || config.Setting.Service == "memcache" {
-					memcache.Write(buf[0:nr], int(srcPort), int(destPort), srcAddr, destAddr, isOutputPacket)
-                                        }
-
+						memcache.Write(buf[0:nr], int(raw.SrcPort), int(raw.DestPort), raw.SrcAddr, raw.DestAddr, raw.Seq)
+					}
 				}
 			} else {
-                                if !(config.Setting.Service != "" && config.Setting.Service != "http") {
-				http.Write(buf[0:nr], int(srcPort), int(destPort), srcAddr, destAddr, isOutputPacket)
-                               }
+				if !(config.Setting.Service != "" && config.Setting.Service != "http") {
+					http.Write(buf[0:nr], int(raw.SrcPort), int(raw.DestPort), raw.SrcAddr, raw.DestAddr, raw.Seq)
+				}
 			}
 		}
 		if er == io.EOF {

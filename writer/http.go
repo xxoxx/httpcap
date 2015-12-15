@@ -48,7 +48,7 @@ var err error
 var locker *sync.Mutex = &sync.Mutex{}
 var hasShowHeaderDesc = false
 
-func (i *HttpOutput) Write(data []byte, srcPort int, destPort int, srcAddr string, destAddr string, isOutputPacket bool) (int, error) {
+func (i *HttpOutput) Write(data []byte, srcPort int, destPort int, srcAddr string, destAddr string, seq uint32) (int, error) {
 
 	if i.isHttps(srcPort, destPort) {
 		// TODO: can't get CONNECT request
@@ -95,7 +95,6 @@ func (i *HttpOutput) Write(data []byte, srcPort int, destPort int, srcAddr strin
 		}
 		i.requests[key] = &requestData
 		locker.Unlock()
-
 	}
 
 	if i.isResponse(data) {

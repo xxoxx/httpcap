@@ -7,8 +7,9 @@ type RAWData struct {
 	LocalAddr string
 	SrcAddr   string
 	DestAddr  string
+	Seq       uint32
 }
 
 type InputReader interface {
-	Read(data []byte) (int, uint16, uint16, string, string, error)
+	Read(data []byte) (int, RAWData, error)
 }
