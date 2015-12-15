@@ -20,7 +20,7 @@ type memcacheData struct {
 
 func NewMemcacheOutput(options string) (di *MemcacheOutput) {
 	di = new(MemcacheOutput)
-        di.requests = make(map[uint32]*memcacheData)
+	di.requests = make(map[uint32]*memcacheData)
 	return
 }
 
@@ -35,7 +35,6 @@ func (i *MemcacheOutput) Write(data []byte, srcPort int, destPort int, srcAddr s
 		fmt.Println("[MC]" + srcAddr + " -> " + destAddr + " " + cmdstr)
 		i.requests[seq] = &memcacheData{cmd: cmdstr, srcPort: srcPort, destPort: destPort, srcAddr: srcAddr, destAddr: destAddr}
 	default:
-                fmt.Printf("%s:%d -> %s:%d\n", srcAddr, srcPort, destAddr, destPort)
 		if req, found := i.requests[seq]; found {
 			size := strconv.Itoa(len(data))
 			fmt.Println("[MC]" + req.srcAddr + " -> " + req.destAddr + " " + req.cmd + " size:" + size + "B")

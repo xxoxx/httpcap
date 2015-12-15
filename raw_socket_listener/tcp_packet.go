@@ -33,25 +33,18 @@ type TCPPacket struct {
 	Window     uint16
 	Checksum   uint16
 	Urgent     uint16
+	Psh        bool
 
 	Data []byte
 
 	Addr   net.Addr
 	SrcIP  string
 	DestIP string
-
-        Psh    bool
-        Act    bool
 }
 
 func ParseTCPPacket(addr net.Addr, src_ip string, dest_ip string, b []byte) (p *TCPPacket) {
 	p = &TCPPacket{Data: b}
-	p.ParseBasic()
-	p.Addr = addr
-	p.SrcIP = src_ip
-	p.DestIP = dest_ip
-        p.Psh = p.Flags&TCP_PSH != 0
-        p.Act = p.Flags&TCP_ACK != 0
+	p.Parse()
 
 	return p
 }
@@ -65,6 +58,7 @@ func (t *TCPPacket) Parse() {
 	t.Window = binary.BigEndian.Uint16(t.Data[14:16])
 	t.Checksum = binary.BigEndian.Uint16(t.Data[16:18])
 	t.Urgent = binary.BigEndian.Uint16(t.Data[18:20])
+	t.Psh = t.Flags&TCP_PSH != 0
 }
 
 // ParseBasic set of fields
