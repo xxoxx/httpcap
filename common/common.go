@@ -74,6 +74,39 @@ func GetHostIp() string {
 	return ip
 }
 
+func GetFirstInterface() (name string, ip string) {
+	ifaces, _ := net.Interfaces()
+
+	for _, iface := range ifaces {
+		addrs, _ := iface.Addrs()
+
+		ipV4 := false
+		for _, addr := range addrs {
+			var ip net.IP
+			if ipnet, ok := addr.(*net.IPNet); ok {
+				ip = ipnet.IP
+			} else if ipaddr, ok := addr.(*net.IPAddr); ok {
+				ip = ipaddr.IP
+			}
+			if ip != nil && ip.To4() != nil && !ip.IsUnspecified() {
+				ipstr := addr.String()
+				idx := strings.Index(ipstr, "/")
+				if idx >= 0 {
+					ipstr = ipstr[:idx]
+				}
+
+				return iface.Name, ipstr
+			}
+		}
+		if !ipV4 {
+			continue
+		}
+
+	}
+
+	return "", "0.0.0.0"
+}
+
 func Debug(args ...interface{}) {
 	if config.Setting.Verbose {
 		log.Println(args...)

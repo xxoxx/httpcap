@@ -1,7 +1,6 @@
 package raw_socket
 
 import (
-_	"log"
 	"sort"
 	"time"
 )
@@ -76,7 +75,7 @@ func (t *TCPMessage) Bytes() (output []byte) {
 	sort.Sort(BySeq(t.packets))
 
 	for _, v := range t.packets {
-		output = append(output, v.Data...)
+		output = append(output, v.tcp.Payload...)
 	}
 
 	return
@@ -84,7 +83,7 @@ func (t *TCPMessage) Bytes() (output []byte) {
 
 func (t *TCPMessage) SourcePort() uint16 {
 	if len(t.packets) > 0 {
-		return t.packets[0].SrcPort
+		return uint16(t.packets[0].tcp.SrcPort)
 	} else {
 		return 0
 	}
@@ -92,7 +91,7 @@ func (t *TCPMessage) SourcePort() uint16 {
 
 func (t *TCPMessage) DestinationPort() uint16 {
 	if len(t.packets) > 0 {
-		return t.packets[0].DestPort
+		return uint16(t.packets[0].tcp.DstPort)
 	} else {
 		return 0
 	}
@@ -115,8 +114,10 @@ func (t *TCPMessage) DestinationIP() string {
 }
 
 func (t *TCPMessage) SequenceNumber() uint32 {
+	sort.Sort(BySeq(t.packets))
+
 	if len(t.packets) > 0 {
-		return t.packets[0].Seq
+		return t.packets[0].tcp.Seq
 	} else {
 		return 0
 	}
@@ -128,7 +129,7 @@ func (t *TCPMessage) AddPacket(packet *TCPPacket) {
 	packetFound := false
 
 	for _, pkt := range t.packets {
-		if packet.Seq == pkt.Seq {
+		if packet.tcp.Seq == pkt.tcp.Seq {
 			packetFound = true
 			break
 		}

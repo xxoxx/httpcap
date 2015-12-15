@@ -1,9 +1,8 @@
 package main
 
 import (
-	"fmt"
+	_ "fmt"
 	"os"
-	"runtime/debug"
 
 	"github.com/codegangsta/cli"
 	"github.com/cxfksword/httpcap/common"
@@ -11,15 +10,6 @@ import (
 )
 
 func main() {
-	// Don't exit on panic
-	defer func() {
-		if r := recover(); r != nil {
-			if _, ok := r.(error); !ok {
-				fmt.Printf("PANIC: pkg: %v %s \n", r, debug.Stack())
-			}
-		}
-	}()
-
 	app := cli.NewApp()
 	app.Name = "httpcap"
 	app.Usage = "A simple network analyzer that capture http network traffic."
@@ -54,11 +44,11 @@ func main() {
 			Value: 0,
 			Usage: "the length to truncate response body (0 - not show body, -1 - show all body)",
 		},
-                cli.StringFlag{
-                        Name:  "service, s",
-                        Value: "http",
-                        Usage: "limit output service (http|memcache|redis|mongodb|twemproxy|mysql)",
-                },
+		cli.StringFlag{
+			Name:  "service, s",
+			Value: "http",
+			Usage: "limit output service (http|memcache|redis|mongodb|twemproxy|mysql)",
+		},
 		cli.BoolFlag{
 			Name:  "verbose, vv",
 			Usage: "output debug message",
@@ -80,7 +70,7 @@ func main() {
 		config.Setting.Filter = c.String("keyword")
 		config.Setting.TruncateBodyLength = c.Int("body")
 		config.Setting.Raw = c.Bool("raw")
-                config.Setting.Service = c.String("service")
+		config.Setting.Service = c.String("service")
 
 		if c.Bool("version") {
 			cli.ShowVersion(c)

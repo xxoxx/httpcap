@@ -49,7 +49,7 @@ func CopyMulty(src reader.InputReader) (err error) {
 	for {
 		nr, raw, er := src.Read(buf)
 		if nr > 0 && len(buf) > nr {
-			common.Debug("Sending", src, ": ", string(buf[0:nr]))
+			common.Debug("[DEBUG]", raw.SrcAddr, ":", raw.SrcPort, "->", raw.DestAddr, ":", raw.DestPort, "size:", nr)
 
 			ip := common.GetHostIp()
 			if srv, found := services[int(raw.SrcPort)]; found && (ip == raw.SrcAddr || raw.SrcAddr == "127.0.0.1") {

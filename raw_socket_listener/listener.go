@@ -1,11 +1,12 @@
 package raw_socket
 
 import (
-	"encoding/binary"
 	_ "fmt"
-	"net"
 	_ "os"
 	"strconv"
+
+	"github.com/cxfksword/httpcap/common"
+	"github.com/google/gopacket/layers"
 )
 
 const (
@@ -29,6 +30,7 @@ type Listener struct {
 
 	addr string // IP to listen
 	port int    // Port to listen
+	host string
 }
 
 // RAWTCPListen creates a listener to capture traffic from RAW_SOCKET
@@ -42,6 +44,7 @@ func NewListener(addr string, port string) (rawListener *Listener) {
 
 	rawListener.addr = addr
 	rawListener.port, _ = strconv.Atoi(port)
+	rawListener.host = common.GetHostIp()
 
 	go rawListener.listen()
 	go rawListener.readRAWSocket()
@@ -64,54 +67,38 @@ func (t *Listener) listen() {
 	}
 }
 
-func (t *Listener) parsePacket(addr net.Addr, src_ip string, dest_ip string, buf []byte, psh bool) {
-	if t.isIncomingDataPacket(buf) {
-		new_buf := make([]byte, len(buf))
-		copy(new_buf, buf)
-
-		t.c_packets <- ParseTCPPacket(addr, src_ip, dest_ip, new_buf, psh)
+func (t *Listener) parsePacket(srcIp string, destIp string, packet *layers.TCP) {
+	if t.isListenPacket(srcIp, destIp, packet) {
+		t.c_packets <- ParseTCPPacket(srcIp, destIp, packet)
 	}
 }
 
-func (t *Listener) isIncomingDataPacket(buf []byte) bool {
-	// To avoid full packet parsing every time, we manually parsing values needed for packet filtering
-	// http://en.wikipedia.org/wiki/Transmission_Control_Protocol
-	src_port := binary.BigEndian.Uint16(buf[:2])
-	dest_port := binary.BigEndian.Uint16(buf[2:4])
-
-	if t.port <= 0 {
-		// Get the 'data offset' (size of the TCP header in 32-bit words)
-		dataOffset := (buf[12] & 0xF0) >> 4
-
-		// We need only packets with data inside
-		// Check that the buffer is larger than the size of the TCP header
-		// SYN and  FIN  packets  and ACK-only packets not have data inside : (((ip[2:2] - ((ip[0]&0xf)<<2)) - ((tcp[12]&0xf0)>>2)) != 0)
-		if len(buf) > int(dataOffset*4) && !t.isHeartbeatPackage(buf, dataOffset) {
-			// We should create new buffer because go slices is pointers. So buffer data shoud be immutable.
-			return true
-		}
-
+func (t *Listener) isListenPacket(srcIp string, destIp string, packet *layers.TCP) bool {
+	// filter SYN,FIN,ACK-only packets not have data inside and Keepalive hearbeat packets with no data inside
+	if len(packet.Payload) == 0 {
 		return false
 	}
 
-	// Because RAW_SOCKET can't be bound to port, we have to control it by ourself
-	if int(dest_port) == t.port || int(src_port) == t.port {
-		// Get the 'data offset' (size of the TCP header in 32-bit words)
-		dataOffset := (buf[12] & 0xF0) >> 4
+	// filter Keepalive hearbeat packets with 1-byte segment on Windows
+	if packet.ACK && len(packet.Payload) == 1 {
+		return false
+	}
 
-		// We need only packets with data inside
-		// Check that the buffer is larger than the size of the TCP header
-		if len(buf) > int(dataOffset*4) && !t.isHeartbeatPackage(buf, dataOffset) {
-			// We should create new buffer because go slices is pointers. So buffer data shoud be immutable.
-			return true
-		}
+	// listen all port packet
+	if t.port <= 0 {
+		return true
+	}
+
+	// Because RAW_SOCKET can't be bound to port, we have to control it by ourself
+	if (t.host == srcIp || srcIp == "127.0.0.1") && int(packet.SrcPort) == t.port {
+		return true
+	}
+
+	if (t.host == destIp || destIp == "127.0.0.1") && int(packet.DstPort) == t.port {
+		return true
 	}
 
 	return false
-}
-
-func (t *Listener) isHeartbeatPackage(buf []byte, dataOffset byte) bool {
-	return (len(buf)-int(dataOffset*4)) == 1 && buf[len(buf)-1] == 0
 }
 
 // Trying to add packet to existing message or creating new message
@@ -121,7 +108,7 @@ func (t *Listener) processTCPPacket(packet *TCPPacket) {
 	defer func() { recover() }()
 
 	var message *TCPMessage
-	m_id := packet.Addr.String() + strconv.Itoa(int(packet.Ack))
+	m_id := packet.SrcIP + strconv.Itoa(int(packet.tcp.Ack))
 
 	message, ok := t.messages[m_id]
 

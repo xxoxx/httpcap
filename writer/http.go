@@ -55,6 +55,7 @@ func (i *HttpOutput) Write(data []byte, srcPort int, destPort int, srcAddr strin
 		// https package
 		return 0, nil
 	}
+
 	if i.isRequest(data) {
 		buf := bytes.NewBuffer(data)
 		reader := bufio.NewReader(buf)
