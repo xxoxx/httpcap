@@ -8,6 +8,7 @@ type Flags struct {
 	Raw                bool
 	Filter             string
 	TruncateBodyLength int
+        Service            string
 }
 
 var Setting Flags

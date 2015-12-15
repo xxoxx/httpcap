@@ -15,7 +15,8 @@ import (
 func DiscoverServices() map[int]Service {
 	path := filepath.Join(os.Getenv("SystemRoot"), "System32\\netstat.exe")
 	out, err := exec.Command(path, "-ano").Output()
-	if err != nil {
+	if err != nil { 
+                log.Print("DiscoverServices error.")
 		log.Fatal(err)
 	}
 

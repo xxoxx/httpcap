@@ -2,17 +2,17 @@ package common
 
 import (
 	"log"
-	"os"
 	"os/exec"
-	"path/filepath"
 	"regexp"
 	"strconv"
 	"strings"
 )
 
 func DiscoverServices() map[int]Service {
-	out, err := exec.Command("netstat", "-tnpl | grep -E 'mysqld|redis-server|memcached|mongos|nutcracker' | awk '{print $4,$7}'").Output()
+        cmd := "netstat -tnpl | grep -E 'mysqld|redis-server|memcached|mongos|nutcracker' | awk '{print $4,$7}'"
+	out, err := exec.Command("bash", "-c", cmd).Output()
 	if err != nil {
+                log.Print("DiscoverServices error.")
 		log.Fatal(err)
 	}
 
@@ -23,7 +23,7 @@ func DiscoverServices() map[int]Service {
 		cols := reg.Split(strings.TrimSpace(line), -1)
 
 		// ignore ipv6
-		if strings.HasPrefix(cols[0], ":::") {
+		if len(cols) < 2 || strings.HasPrefix(cols[0], ":::") {
 			continue
 		}
 

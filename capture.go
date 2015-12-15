@@ -5,6 +5,7 @@ import (
 	"io"
 	"runtime/debug"
 	"time"
+        "log"
 
 	"github.com/cxfksword/httpcap/common"
 	"github.com/cxfksword/httpcap/config"
@@ -35,7 +36,7 @@ func CopyMulty(src reader.InputReader) (err error) {
 			} else {
 				fmt.Printf("PANIC: pkg: %s \n", debug.Stack())
 			}
-			CopyMulty(src)
+                        log.Fatal(r.(error))
 		}
 	}()
 
@@ -56,14 +57,20 @@ func CopyMulty(src reader.InputReader) (err error) {
 				isOutputPacket = true
 				servicePort = srcPort
 			}
-
+                        
+                        
 			if srv, found := services[int(servicePort)]; found {
 				switch srv.Type {
 				case common.Service_Type_Memcache:
+					if config.Setting.Service == "" || config.Setting.Service == "memcache" {
 					memcache.Write(buf[0:nr], int(srcPort), int(destPort), srcAddr, destAddr, isOutputPacket)
+                                        }
+
 				}
 			} else {
+                                if !(config.Setting.Service != "" && config.Setting.Service != "http") {
 				http.Write(buf[0:nr], int(srcPort), int(destPort), srcAddr, destAddr, isOutputPacket)
+                               }
 			}
 		}
 		if er == io.EOF {

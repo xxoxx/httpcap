@@ -54,6 +54,11 @@ func main() {
 			Value: 0,
 			Usage: "the length to truncate response body (0 - not show body, -1 - show all body)",
 		},
+                cli.StringFlag{
+                        Name:  "service, s",
+                        Value: "http",
+                        Usage: "limit output service (http|memcache|redis|mongodb|twemproxy|mysql)",
+                },
 		cli.BoolFlag{
 			Name:  "verbose, vv",
 			Usage: "output debug message",
@@ -75,6 +80,7 @@ func main() {
 		config.Setting.Filter = c.String("keyword")
 		config.Setting.TruncateBodyLength = c.Int("body")
 		config.Setting.Raw = c.Bool("raw")
+                config.Setting.Service = c.String("service")
 
 		if c.Bool("version") {
 			cli.ShowVersion(c)
