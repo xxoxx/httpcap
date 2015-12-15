@@ -82,6 +82,7 @@ func (t *Listener) readRAWSocket() {
 			src_ip = packet.NetworkLayer().NetworkFlow().Src().String()
 			dest_ip = packet.NetworkLayer().NetworkFlow().Dst().String()
 			remoteAddr := &net.IPAddr{IP: net.ParseIP(src_ip)}
+			psh := tcp.PSH
 			n := len(tcp.Contents) + len(tcp.Payload)
 
 			// log.Println(src_ip + " -> " + dest_ip)
@@ -93,7 +94,7 @@ func (t *Listener) readRAWSocket() {
 				copy(buf[len(tcp.Contents):], tcp.Payload)
 			}
 
-			t.parsePacket(remoteAddr, src_ip, dest_ip, buf[:n])
+			t.parsePacket(remoteAddr, src_ip, dest_ip, buf[:n], psh)
 		}
 	}
 

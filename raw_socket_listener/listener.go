@@ -2,7 +2,7 @@ package raw_socket
 
 import (
 	"encoding/binary"
-_ 	"fmt"
+	_ "fmt"
 	"net"
 	_ "os"
 	"strconv"
@@ -64,12 +64,12 @@ func (t *Listener) listen() {
 	}
 }
 
-func (t *Listener) parsePacket(addr net.Addr, src_ip string, dest_ip string, buf []byte) {
+func (t *Listener) parsePacket(addr net.Addr, src_ip string, dest_ip string, buf []byte, psh bool) {
 	if t.isIncomingDataPacket(buf) {
 		new_buf := make([]byte, len(buf))
 		copy(new_buf, buf)
 
-		t.c_packets <- ParseTCPPacket(addr, src_ip, dest_ip, new_buf)
+		t.c_packets <- ParseTCPPacket(addr, src_ip, dest_ip, new_buf, psh)
 	}
 }
 

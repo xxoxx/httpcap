@@ -42,9 +42,13 @@ type TCPPacket struct {
 	DestIP string
 }
 
-func ParseTCPPacket(addr net.Addr, src_ip string, dest_ip string, b []byte) (p *TCPPacket) {
+func ParseTCPPacket(addr net.Addr, src_ip string, dest_ip string, b []byte, psh bool) (p *TCPPacket) {
 	p = &TCPPacket{Data: b}
-	p.Parse()
+	p.ParseBasic()
+	p.Addr = addr
+	p.SrcIP = src_ip
+	p.DestIP = dest_ip
+	p.Psh = psh
 
 	return p
 }
