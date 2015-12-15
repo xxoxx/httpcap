@@ -1,4 +1,4 @@
-package main
+package reader
 
 type RAWData struct {
 	Data      []byte

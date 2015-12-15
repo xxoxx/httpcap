@@ -1,4 +1,4 @@
-package main
+package writer
 
 import (
 	"bufio"
@@ -18,6 +18,8 @@ import (
 	"unicode"
 
 	"github.com/cxfksword/httpcap/color"
+	"github.com/cxfksword/httpcap/common"
+	"github.com/cxfksword/httpcap/config"
 )
 
 type HttpOutput struct {
@@ -26,8 +28,8 @@ type HttpOutput struct {
 
 type httpRequestData struct {
 	request  *http.Request
-	srcPort  uint16
-	destPort uint16
+	srcPort  int
+	destPort int
 	srcAddr  string
 	destAddr string
 	header   string
@@ -46,7 +48,7 @@ var err error
 var locker *sync.Mutex = &sync.Mutex{}
 var hasShowHeaderDesc = false
 
-func (i *HttpOutput) Write(data []byte, srcPort uint16, destPort uint16, srcAddr string, destAddr string) (int, error) {
+func (i *HttpOutput) Write(data []byte, srcPort int, destPort int, srcAddr string, destAddr string, isOutputPacket bool) (int, error) {
 
 	if i.isHttps(srcPort, destPort) {
 		// TODO: can't get CONNECT request
@@ -151,18 +153,18 @@ func (i *HttpOutput) Output(requestData *httpRequestData, response *http.Respons
 	// filte request
 	if requestData != nil {
 		url := "http://" + requestData.request.Host + requestData.request.RequestURI
-		if Setting.Filter != "" && !strings.Contains(url, Setting.Filter) {
+		if config.Setting.Filter != "" && !strings.Contains(url, config.Setting.Filter) {
 			return
 		}
 	}
 
 	// raw output mode
-	if Setting.Raw {
+	if config.Setting.Raw {
 		i.OutputRAW(requestData, response, rawResponseHeader)
 		return
 	}
 
-	if strings.TrimSpace(Setting.Format) != "" {
+	if strings.TrimSpace(config.Setting.Format) != "" {
 		i.OutputRequestLine(requestData, response, rawResponseHeader)
 		return
 	}
@@ -249,13 +251,13 @@ func (i *HttpOutput) OutputRAW(requestData *httpRequestData, response *http.Resp
 }
 
 func (i *HttpOutput) OutputBody(body []byte) {
-	if Setting.TruncateBodyLength == 0 {
+	if config.Setting.TruncateBodyLength == 0 {
 		return
 	}
 
 	content := string(body)
-	if Setting.TruncateBodyLength > 0 {
-		content = i.SubString(content, Setting.TruncateBodyLength)
+	if config.Setting.TruncateBodyLength > 0 {
+		content = i.SubString(content, config.Setting.TruncateBodyLength)
 	}
 	if strings.TrimSpace(content) == "" || len(content) == 0 {
 		return
@@ -346,9 +348,9 @@ func (i *HttpOutput) OutputRequestLine(requestData *httpRequestData, response *h
 	for key, _ := range variables {
 		keys = append(keys, key)
 	}
-	sort.Sort(ByLength(keys))
+	sort.Sort(common.ByLength(keys))
 
-	line := Setting.Format
+	line := config.Setting.Format
 	for _, key := range keys {
 		if v, found := variables[key]; found {
 			line = strings.Replace(line, key, v, -1)
@@ -446,7 +448,7 @@ func (i *HttpOutput) isResponse(data []byte) bool {
 	return strings.HasPrefix(strings.TrimSpace(firstLine), "HTTP/")
 }
 
-func (i *HttpOutput) isHttps(srcPort uint16, destPort uint16) bool {
+func (i *HttpOutput) isHttps(srcPort int, destPort int) bool {
 	// get ClientHello headshake package
 	if srcPort == 443 || destPort == 443 {
 		return true
@@ -484,7 +486,7 @@ func (i *HttpOutput) requestMonitor() {
 	}
 }
 
-func (i *HttpOutput) key(srcAddr string, destAddr string, srcPort uint16, destPort uint16) string {
+func (i *HttpOutput) key(srcAddr string, destAddr string, srcPort int, destPort int) string {
 	strs := []string{srcAddr, destAddr, fmt.Sprintf("%d", srcPort), fmt.Sprintf("%d", destPort)}
 	sort.Strings(strs)
 	return strings.Join(strs, "_")

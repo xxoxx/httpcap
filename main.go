@@ -2,27 +2,12 @@ package main
 
 import (
 	"fmt"
-	"log"
-	"net"
 	"os"
 	"runtime/debug"
-	"strings"
 
 	"github.com/codegangsta/cli"
-)
-
-type Flags struct {
-	Verbose            bool
-	InterfaceName      string
-	Port               string
-	Format             string
-	Raw                bool
-	Filter             string
-	TruncateBodyLength int
-}
-
-var (
-	Setting Flags
+	"github.com/cxfksword/httpcap/common"
+	"github.com/cxfksword/httpcap/config"
 )
 
 func main() {
@@ -79,17 +64,17 @@ func main() {
 			Name:  "list",
 			Usage: "show all interfaces",
 			Action: func(c *cli.Context) {
-				ShowAllInterfaces()
+				common.ShowAllInterfaces()
 			},
 		}}
 	app.Action = func(c *cli.Context) {
-		Setting.Verbose = c.Bool("verbose")
-		Setting.InterfaceName = c.String("interface")
-		Setting.Port = c.String("port")
-		Setting.Format = c.String("format")
-		Setting.Filter = c.String("keyword")
-		Setting.TruncateBodyLength = c.Int("body")
-		Setting.Raw = c.Bool("raw")
+		config.Setting.Verbose = c.Bool("verbose")
+		config.Setting.InterfaceName = c.String("interface")
+		config.Setting.Port = c.String("port")
+		config.Setting.Format = c.String("format")
+		config.Setting.Filter = c.String("keyword")
+		config.Setting.TruncateBodyLength = c.Int("body")
+		config.Setting.Raw = c.Bool("raw")
 
 		if c.Bool("version") {
 			cli.ShowVersion(c)
@@ -105,47 +90,4 @@ func main() {
 	}
 
 	app.Run(os.Args)
-}
-
-func ShowAllInterfaces() {
-	ifaces, _ := net.Interfaces()
-
-	iplist := ""
-	for _, iface := range ifaces {
-		addrs, _ := iface.Addrs()
-
-		ipV4 := false
-		ipAddrs := []string{}
-		for _, addr := range addrs {
-			var ip net.IP
-			if ipnet, ok := addr.(*net.IPNet); ok {
-				ip = ipnet.IP
-			} else if ipaddr, ok := addr.(*net.IPAddr); ok {
-				ip = ipaddr.IP
-			}
-			if ip != nil && ip.To4() != nil && !ip.IsUnspecified() {
-				ipstr := addr.String()
-				idx := strings.Index(ipstr, "/")
-				if idx >= 0 {
-					ipstr = ipstr[:idx]
-				}
-				ipAddrs = append(ipAddrs, ipstr)
-				ipV4 = true
-			}
-		}
-		if !ipV4 {
-			continue
-		}
-
-		iplist += fmt.Sprintf("%-7d %-40s %s\n", iface.Index, iface.Name, strings.Join(ipAddrs, ", "))
-	}
-
-	fmt.Printf("%-7s %-40s %s\n", "index", "interface name", "ip")
-	fmt.Print(iplist)
-}
-
-func Debug(args ...interface{}) {
-	if Setting.Verbose {
-		log.Println(args...)
-	}
 }

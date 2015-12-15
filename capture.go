@@ -5,13 +5,17 @@ import (
 	"io"
 	"runtime/debug"
 	"time"
+
+	"github.com/cxfksword/httpcap/common"
+	"github.com/cxfksword/httpcap/config"
+	"github.com/cxfksword/httpcap/reader"
+	"github.com/cxfksword/httpcap/writer"
 )
 
 func startCapture() {
-	input := NewRAWInput(Setting.InterfaceName, Setting.Port)
-	output := NewHttpOutput("")
+	input := reader.NewRAWInput(config.Setting.InterfaceName, config.Setting.Port)
 
-	go CopyMulty(input, output)
+	go CopyMulty(input)
 
 	for {
 		select {
@@ -22,7 +26,7 @@ func startCapture() {
 	}
 }
 
-func CopyMulty(src InputReader, writers ...OutputWriter) (err error) {
+func CopyMulty(src reader.InputReader) (err error) {
 	// Don't exit on panic
 	defer func() {
 		if r := recover(); r != nil {
@@ -31,33 +35,36 @@ func CopyMulty(src InputReader, writers ...OutputWriter) (err error) {
 			} else {
 				fmt.Printf("PANIC: pkg: %s \n", debug.Stack())
 			}
-			CopyMulty(src, writers...)
+			CopyMulty(src)
 		}
 	}()
 
+	http := writer.NewHttpOutput("")
+	memcache := writer.NewMemcacheOutput("")
+
+	services := common.DiscoverServices()
 	buf := make([]byte, 5*1024*1024)
-	wIndex := 0
 
 	for {
 		nr, srcPort, destPort, srcAddr, destAddr, er := src.Read(buf)
 		if nr > 0 && len(buf) > nr {
-			Debug("Sending", src, ": ", string(buf[0:nr]))
+			common.Debug("Sending", src, ": ", string(buf[0:nr]))
 
-			if true {
-				// Simple round robin
-				writers[wIndex].Write(buf[0:nr], srcPort, destPort, srcAddr, destAddr)
-
-				wIndex++
-
-				if wIndex >= len(writers) {
-					wIndex = 0
-				}
-			} else {
-				for _, dst := range writers {
-					dst.Write(buf[0:nr], srcPort, destPort, srcAddr, destAddr)
-				}
+			servicePort := destPort
+			isOutputPacket := false
+			if ip := common.GetHostIp(); ip == srcAddr {
+				isOutputPacket = true
+				servicePort = srcPort
 			}
 
+			if srv, found := services[int(servicePort)]; found {
+				switch srv.Type {
+				case common.Service_Type_Memcache:
+					memcache.Write(buf[0:nr], int(srcPort), int(destPort), srcAddr, destAddr, isOutputPacket)
+				}
+			} else {
+				http.Write(buf[0:nr], int(srcPort), int(destPort), srcAddr, destAddr, isOutputPacket)
+			}
 		}
 		if er == io.EOF {
 			break

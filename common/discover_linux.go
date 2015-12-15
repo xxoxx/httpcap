@@ -10,13 +10,13 @@ import (
 	"strings"
 )
 
-func DiscoverServices() []Service {
+func DiscoverServices() map[int]Service {
 	out, err := exec.Command("netstat", "-tnpl | grep -E 'mysqld|redis-server|memcached|mongos|nutcracker' | awk '{print $4,$7}'").Output()
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	services := []Service{}
+	services := make(map[int]Service)
 	lines := strings.Split(string(out), "\n")
 	for _, line := range lines {
 		reg := regexp.MustCompile("\\s+")
@@ -35,15 +35,15 @@ func DiscoverServices() []Service {
 
 		switch exec {
 		case "redis-server":
-			services = append(services, Service{Port: port, Type: Service_Type_Redis, Pid: pid})
+			services[port] = Service{Port: port, Type: Service_Type_Redis, Pid: pid}
 		case "memcached":
-			services = append(services, Service{Port: port, Type: Service_Type_Memcache, Pid: pid})
+			services[port] = Service{Port: port, Type: Service_Type_Memcache, Pid: pid}
 		case "mongod":
-			services = append(services, Service{Port: port, Type: Service_Type_Mongodb, Pid: pid})
+			services[port] = Service{Port: port, Type: Service_Type_Mongodb, Pid: pid}
 		case "mysqld":
-			services = append(services, Service{Port: port, Type: Service_Type_Mysql, Pid: pid})
+			services[port] = Service{Port: port, Type: Service_Type_Mysql, Pid: pid}
 		case "nutcracker":
-			services = append(services, Service{Port: port, Type: Service_Type_Twemproxy, Pid: pid})
+			services[port] = Service{Port: port, Type: Service_Type_Twemproxy, Pid: pid}
 		}
 
 	}

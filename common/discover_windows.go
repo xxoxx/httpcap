@@ -12,7 +12,7 @@ import (
 	"github.com/mitchellh/go-ps"
 )
 
-func DiscoverServices() []Service {
+func DiscoverServices() map[int]Service {
 	path := filepath.Join(os.Getenv("SystemRoot"), "System32\\netstat.exe")
 	out, err := exec.Command(path, "-ano").Output()
 	if err != nil {
@@ -26,7 +26,7 @@ func DiscoverServices() []Service {
 	}
 	// fmt.Println(pidMap)
 
-	services := []Service{}
+	services := make(map[int]Service)
 	lines := strings.Split(string(out), "\n")
 	for _, line := range lines {
 		reg := regexp.MustCompile("\\s+")
@@ -44,15 +44,15 @@ func DiscoverServices() []Service {
 
 			switch exec {
 			case "redis.exe":
-				services = append(services, Service{Port: port, Type: Service_Type_Redis, Pid: pid})
+				services[port] = Service{Port: port, Type: Service_Type_Redis, Pid: pid}
 			case "memcached.exe":
-				services = append(services, Service{Port: port, Type: Service_Type_Memcache, Pid: pid})
+				services[port] = Service{Port: port, Type: Service_Type_Memcache, Pid: pid}
 			case "mongod.exe":
-				services = append(services, Service{Port: port, Type: Service_Type_Mongodb, Pid: pid})
+				services[port] = Service{Port: port, Type: Service_Type_Mongodb, Pid: pid}
 			case "mysql.exe":
-				services = append(services, Service{Port: port, Type: Service_Type_Mysql, Pid: pid})
+				services[port] = Service{Port: port, Type: Service_Type_Mysql, Pid: pid}
 			case "nutcracker.exe":
-				services = append(services, Service{Port: port, Type: Service_Type_Twemproxy, Pid: pid})
+				services[port] = Service{Port: port, Type: Service_Type_Twemproxy, Pid: pid}
 			}
 
 		}

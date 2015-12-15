@@ -1,4 +1,4 @@
-package main
+package reader
 
 import (
 	"fmt"
@@ -7,6 +7,7 @@ import (
 	"runtime"
 	"strings"
 
+	"github.com/cxfksword/httpcap/config"
 	raw "github.com/cxfksword/httpcap/raw_socket_listener"
 )
 
@@ -37,7 +38,7 @@ func NewRAWInput(host string, port string) (i *RAWInput) {
 	}
 
 	mode := ""
-	if Setting.Verbose {
+	if config.Setting.Verbose {
 		mode = " [DEBUG MODE]"
 	}
 
