@@ -51,12 +51,15 @@ func CopyMulty(src reader.InputReader) (err error) {
 		if nr > 0 && len(buf) > nr {
 			common.Debug("Sending", src, ": ", string(buf[0:nr]))
 
-			servicePort := raw.DestPort
-			if ip := common.GetHostIp(); ip == raw.SrcAddr {
-				servicePort = raw.SrcPort
-			}
-
-			if srv, found := services[int(servicePort)]; found {
+			ip := common.GetHostIp()
+			if srv, found := services[int(raw.SrcPort)]; found && ip == raw.SrcAddr {
+				switch srv.Type {
+				case common.Service_Type_Memcache:
+					if config.Setting.Service == "" || config.Setting.Service == "memcache" {
+						memcache.Write(buf[0:nr], int(raw.SrcPort), int(raw.DestPort), raw.SrcAddr, raw.DestAddr, raw.Seq)
+					}
+				}
+			} else if srv, found := services[int(raw.DestPort)]; found && ip == raw.DestAddr {
 				switch srv.Type {
 				case common.Service_Type_Memcache:
 					if config.Setting.Service == "" || config.Setting.Service == "memcache" {
