@@ -48,8 +48,8 @@ func (t *Listener) readRAWSocket() {
 	var promiscuous bool = false
 	var timeout time.Duration = 30 * time.Second
 
-	inet, _ := common.GetFirstInterface()
-	handle, err := pcap.OpenLive("\\Device\\NPF_"+inet, snapshotLen, promiscuous, timeout)
+	inet := getInterfaceName()
+	handle, err := pcap.OpenLive(inet, snapshotLen, promiscuous, timeout)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -80,4 +80,23 @@ func sysSocket(family, sotype, proto int) (syscall.Handle, error) {
 		return syscall.InvalidHandle, os.NewSyscallError("socket", err)
 	}
 	return s, nil
+}
+
+func getInterfaceName() string {
+	ip := common.GetHostIp()
+	devices, err := pcap.FindAllDevs()
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	for _, dev := range devices {
+		addrs := dev.Addresses
+		for _, addr := range addrs {
+			if addr.IP.String() == ip {
+				return dev.Name
+			}
+		}
+	}
+
+	return ""
 }
