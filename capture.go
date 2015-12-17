@@ -43,29 +43,14 @@ func CopyMulty(src reader.InputReader) (err error) {
 	http := writer.NewHttpOutput("")
 	memcache := writer.NewMemcacheOutput("")
 
-	services := common.DiscoverServices()
 	buf := make([]byte, 5*1024*1024)
 
 	for {
 		nr, raw, er := src.Read(buf)
 		if nr > 0 && len(buf) > nr {
 			common.Debug("[DEBUG]", raw.SrcAddr, ":", raw.SrcPort, "->", raw.DestAddr, ":", raw.DestPort, "size:", nr)
-
-			ip := common.GetHostIp()
-			if srv, found := services[int(raw.SrcPort)]; found && (ip == raw.SrcAddr || raw.SrcAddr == "127.0.0.1") {
-				switch srv.Type {
-				case common.Service_Type_Memcache:
-					if config.Setting.Service == "" || config.Setting.Service == "memcache" {
-						memcache.Write(buf[0:nr], int(raw.SrcPort), int(raw.DestPort), raw.SrcAddr, raw.DestAddr, raw.Seq)
-					}
-				}
-			} else if srv, found := services[int(raw.DestPort)]; found && (ip == raw.DestAddr || raw.SrcAddr == "127.0.0.1") {
-				switch srv.Type {
-				case common.Service_Type_Memcache:
-					if config.Setting.Service == "" || config.Setting.Service == "memcache" {
-						memcache.Write(buf[0:nr], int(raw.SrcPort), int(raw.DestPort), raw.SrcAddr, raw.DestAddr, raw.Seq)
-					}
-				}
+                        if config.Setting.Service == "memcache" {
+				memcache.Write(buf[0:nr], int(raw.SrcPort), int(raw.DestPort), raw.SrcAddr, raw.DestAddr, raw.Seq)
 			} else {
 				if !(config.Setting.Service != "" && config.Setting.Service != "http") {
 					http.Write(buf[0:nr], int(raw.SrcPort), int(raw.DestPort), raw.SrcAddr, raw.DestAddr, raw.Seq)
