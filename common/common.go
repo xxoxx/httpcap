@@ -63,9 +63,10 @@ func GetHostIp() string {
 
 	addrs, _ := net.InterfaceAddrs()
 	for _, a := range addrs {
-		if ipnet, ok := a.(*net.IPNet); ok && !ipnet.IP.IsLoopback() && ipnet.IP.IsGlobalUnicast() {
-			if ipnet.IP.To4() != nil {
-				ip = ipnet.IP.String()
+		ipnet := net.ParseIP(a.String())
+		if ipnet != nil && !ipnet.IsLoopback() && !ipnet.IsUnspecified() {
+			if ipnet.To4() != nil {
+				ip = ipnet.String()
 				break
 			}
 		}

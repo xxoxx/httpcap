@@ -49,6 +49,7 @@ func (t *Listener) readRAWSocket() {
 	var timeout time.Duration = 30 * time.Second
 
 	inet := getInterfaceName()
+	log.Println(inet)
 	handle, err := pcap.OpenLive(inet, snapshotLen, promiscuous, timeout)
 	if err != nil {
 		log.Fatal(err)
@@ -84,6 +85,7 @@ func sysSocket(family, sotype, proto int) (syscall.Handle, error) {
 
 func getInterfaceName() string {
 	ip := common.GetHostIp()
+	log.Println(ip)
 	devices, err := pcap.FindAllDevs()
 	if err != nil {
 		log.Fatal(err)
@@ -92,6 +94,7 @@ func getInterfaceName() string {
 	for _, dev := range devices {
 		addrs := dev.Addresses
 		for _, addr := range addrs {
+			log.Println(addr.IP.String())
 			if addr.IP.String() == ip {
 				return dev.Name
 			}
