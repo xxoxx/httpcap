@@ -49,7 +49,6 @@ func (t *Listener) readRAWSocket() {
 	var timeout time.Duration = 30 * time.Second
 
 	inet := getInterfaceName()
-	log.Println(inet)
 	handle, err := pcap.OpenLive(inet, snapshotLen, promiscuous, timeout)
 	if err != nil {
 		log.Fatal(err)
